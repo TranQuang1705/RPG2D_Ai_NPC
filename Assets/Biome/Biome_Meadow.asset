@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 86509e6742889f44aa56f78fd84d464c, type: 3}
+  m_Name: Biome_Meadow
+  m_EditorClassIdentifier: 
+  grassTiles:
+  - tile: {fileID: 11400000, guid: 838ad9a7e8a39fa4489668c130d06349, type: 2}
+    weight: 0.075
+  - tile: {fileID: 11400000, guid: 2b7c483f762da824fb155d1bb0929806, type: 2}
+    weight: 0.075
+  - tile: {fileID: 11400000, guid: 8c48d33b915e1f6439ad8a6e8a3c8312, type: 2}
+    weight: 0.075
+  - tile: {fileID: 11400000, guid: 5f71d342f34f4a84ab078129631bef46, type: 2}
+    weight: 0.075
+  - tile: {fileID: 11400000, guid: 0dbca3cebb9cd514ca45b36327d6deb6, type: 2}
+    weight: 0.634
+  dirtTiles:
+  - tile: {fileID: 11400000, guid: 6b663be23112219429fa7f09602f970f, type: 2}
+    weight: 1
+  waterTiles:
+  - tile: {fileID: 11400000, guid: ee0025e1adcab1043913956a34594b9f, type: 2}
+    weight: 1
+  decorTiles:
+  - tile: {fileID: 0}
+    weight: 0
+  props:
+  - prefab: {fileID: 743519695853087583, guid: e5e27c298d1fa0441bbd1a07a3dbe6c0, type: 3}
+    density: 0.02
+  - prefab: {fileID: 3540045815185265912, guid: a8e515deabe07e34fb3ff45fda26032e, type: 3}
+    density: 0.035
+  - prefab: {fileID: 4476026751929201096, guid: c505e5a0da3d5f94299752bdb66bdc81, type: 3}
+    density: 0.06
+  - prefab: {fileID: 4476026751929201096, guid: f01e92a9da823be48be44246798242f7, type: 3}
+    density: 0.001
+  - prefab: {fileID: 4476026751929201096, guid: 24d8bb923629a364683f48e33d1a4592, type: 3}
+    density: 0.002
+  - prefab: {fileID: 4476026751929201096, guid: c946f03ee751e1341b4110010489fdc2, type: 3}
+    density: 0.003
+  - prefab: {fileID: 4476026751929201096, guid: 243cefe045796824fb3d88dfcd61eab9, type: 3}
+    density: 0.003
+  cliffTiles:
+  - tile: {fileID: 11400000, guid: 8446a8313ca99cf4cafe23102ab9a170, type: 2}
+    weight: 0.2
+  waterProps:
+  - prefab: {fileID: 270550478967034301, guid: 4e2a47f37f41f6549a01569a7c922482, type: 3}
+    density: 0
+  - prefab: {fileID: 576226658627533469, guid: 5b6b2156c87f7924595bb5d374569ce0, type: 3}
+    density: 0
+  waterThreshold: 0.28
+  dirtThreshold: 0.45
+  decorChance: 0.08

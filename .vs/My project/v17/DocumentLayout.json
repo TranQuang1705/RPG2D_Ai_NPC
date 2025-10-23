@@ -1,0 +1,153 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\OneMonth_AlexTheWanderer\\My project\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|d:\\onemonth_alexthewanderer\\my project\\assets\\scenechange.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|solutionrelative:assets\\scenechange.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|D:\\OneMonth_AlexTheWanderer\\My project\\assets\\sceneswitcher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|solutionrelative:assets\\sceneswitcher.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|D:\\OneMonth_AlexTheWanderer\\My project\\assets\\scripts\\enemies\\shooter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\enemies\\shooter.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|D:\\OneMonth_AlexTheWanderer\\My project\\assets\\audio.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|solutionrelative:assets\\audio.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|d:\\onemonth_alexthewanderer\\my project\\assets\\scripts\\bosshealth.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\bosshealth.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|d:\\onemonth_alexthewanderer\\my project\\assets\\scripts\\enemies\\bosshealth.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:assets\\scripts\\enemies\\bosshealth.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|D:\\OneMonth_AlexTheWanderer\\My project\\assets\\creditsequencecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|solutionrelative:assets\\creditsequencecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|D:\\OneMonth_AlexTheWanderer\\My project\\assets\\animationeventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{32C3BDE6-E125-3128-82C1-25D0441455A3}|Assembly-CSharp.csproj|solutionrelative:assets\\animationeventhandler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "SceneChange.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\SceneChange.cs",
+              "RelativeDocumentMoniker": "Assets\\SceneChange.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\SceneChange.cs",
+              "RelativeToolTip": "Assets\\SceneChange.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T04:21:20.067Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Audio.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Audio.cs",
+              "RelativeDocumentMoniker": "Assets\\Audio.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Audio.cs",
+              "RelativeToolTip": "Assets\\Audio.cs",
+              "ViewState": "AgIAABAAAAAAAAAAAAAQwC0AAAAUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T03:49:30.67Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Shooter.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Scripts\\Enemies\\Shooter.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Enemies\\Shooter.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Scripts\\Enemies\\Shooter.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Enemies\\Shooter.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T03:38:04.411Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "SceneSwitcher.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\SceneSwitcher.cs",
+              "RelativeDocumentMoniker": "Assets\\SceneSwitcher.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\SceneSwitcher.cs",
+              "RelativeToolTip": "Assets\\SceneSwitcher.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T03:29:44.417Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "BossHealth.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Scripts\\BossHealth.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\BossHealth.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Scripts\\BossHealth.cs",
+              "RelativeToolTip": "Assets\\Scripts\\BossHealth.cs",
+              "ViewState": "AgIAACoAAAAAAAAAAAAYwDsAAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T03:16:39.975Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "BossHealth.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Scripts\\Enemies\\BossHealth.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Enemies\\BossHealth.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\Scripts\\Enemies\\BossHealth.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Enemies\\BossHealth.cs",
+              "ViewState": "AgIAAAMAAAAAAAAAAAAAABQAAAAHAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T03:13:25.274Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "AnimationEventHandler.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\AnimationEventHandler.cs",
+              "RelativeDocumentMoniker": "Assets\\AnimationEventHandler.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\AnimationEventHandler.cs",
+              "RelativeToolTip": "Assets\\AnimationEventHandler.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T03:06:49.985Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "CreditSequenceController.cs",
+              "DocumentMoniker": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\CreditSequenceController.cs",
+              "RelativeDocumentMoniker": "Assets\\CreditSequenceController.cs",
+              "ToolTip": "D:\\OneMonth_AlexTheWanderer\\My project\\Assets\\CreditSequenceController.cs",
+              "RelativeToolTip": "Assets\\CreditSequenceController.cs",
+              "ViewState": "AgIAAAgAAAAAAAAAAAAAwB0AAAAgAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-11-29T03:05:33.882Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
