@@ -17,7 +17,7 @@ GameObject:
   - component: {fileID: 549751961196639366}
   - component: {fileID: 7337498794989620055}
   - component: {fileID: 4428587785127256517}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Tree (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -158,9 +158,9 @@ CircleCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0.02, y: 1.2855}
+  m_Offset: {x: 0.01999998, y: 0.66559523}
   serializedVersion: 2
-  m_Radius: 0.8175004
+  m_Radius: 0.6699038
 --- !u!114 &2948752042311157896
 MonoBehaviour:
   m_ObjectHideFlags: 0

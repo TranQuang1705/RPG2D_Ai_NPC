@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 5056945077219541680}
   - component: {fileID: 6860624719144682397}
   - component: {fileID: -106666671748039502}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Barrel
   m_TagString: Wood
   m_Icon: {fileID: 0}

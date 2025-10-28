@@ -10,6 +10,17 @@ using System.Collections;
 
 public class MapGenerator : MonoBehaviour
 {
+    // === CẤU TRÚC LƯU TRỮ THÔNG TIN CẦU HÌNH CHỮ NHẬT ===
+    public struct RectangleBridge
+    {
+        public int minX, maxX, minY, maxY;
+        public bool isHorizontal;
+        public bool IsValid;
+
+        public int Width => maxX - minX + 1;
+        public int Height => maxY - minY + 1;
+    }
+
     [Header("Ground Generation")]
     public bool onlyRoadIsDirt = true; // nếu true: nền chỉ cỏ + nước, KHÔNG rải dirt theo noise
 
@@ -236,7 +247,8 @@ public class MapGenerator : MonoBehaviour
         grid.groundTilemap = groundTM;
         grid.obstacleTilemap = foregroundTM;
         grid.GenerateGrid();
-        Debug.Log($"🧩 Grid generated: {width} x {height}");
+        
+        Debug.Log($"🧩 Grid generated: {width} x {height} (LIMITED FOR PERFORMANCE)");
 
         // Lấy vị trí player và village trong toạ độ grid
         Vector3 playerWorld = player != null ? player.position : Vector3.zero;
@@ -278,39 +290,30 @@ public class MapGenerator : MonoBehaviour
     // =========================
     void GenerateBase()
     {
-        for (int x = 0; x < width; x += 4)
+        for (int x = 0; x < width; x++)
         {
-            for (int y = 0; y < height; y += 4)
+            for (int y = 0; y < height; y++)
             {
-                float avg = 0;
-                for (int dx = 0; dx < 4; dx++)
-                    for (int dy = 0; dy < 4; dy++)
-                        avg += Mathf.PerlinNoise(
-                            noiseOffset.x + (x + dx) * noiseScale,
-                            noiseOffset.y + (y + dy) * noiseScale
-                        );
-                avg /= 16f;
+                float noise = Mathf.PerlinNoise(
+                    noiseOffset.x + x * noiseScale,
+                    noiseOffset.y + y * noiseScale
+                );
 
-                // GRASS nền
-                for (int dx = 0; dx < 4 && x + dx < width; dx++)
-                    for (int dy = 0; dy < 4 && y + dy < height; dy++)
-                        groundTM.SetTile(new Vector3Int(x + dx, y + dy, 0),
-                                         biome.Pick(biome.grassTiles, rng));
+                // GRASS nền mặc định
+                groundTM.SetTile(new Vector3Int(x, y, 0),
+                                 biome.Pick(biome.grassTiles, rng));
 
-                // DIRT tự nhiên (tùy chọn)
-                if (!onlyRoadIsDirt && avg <= biome.dirtThreshold)
+                // DIRT tự nhiên (tùy chọn) - spawn theo lưới 1x1
+                if (!onlyRoadIsDirt && noise <= biome.dirtThreshold)
                 {
-                    for (int dx = 0; dx < 4 && x + dx < width; dx++)
-                        for (int dy = 0; dy < 4 && y + dy < height; dy++)
-                            groundTM.SetTile(new Vector3Int(x + dx, y + dy, 0),
-                                             biome.Pick(biome.dirtTiles, rng));
+                    groundTM.SetTile(new Vector3Int(x, y, 0),
+                                     biome.Pick(biome.dirtTiles, rng));
                 }
-                else if (avg > 0.8f && biome.cliffTiles.Length > 0)
+                // CLIFF - spawn theo lưới 1x1
+                else if (noise > 0.8f && biome.cliffTiles.Length > 0)
                 {
-                    for (int dx = 0; dx < 4 && x + dx < width; dx++)
-                        for (int dy = 0; dy < 4 && y + dy < height; dy++)
-                            foregroundTM.SetTile(new Vector3Int(x + dx, y + dy, 0),
-                                                 biome.Pick(biome.cliffTiles, rng));
+                    foregroundTM.SetTile(new Vector3Int(x, y, 0),
+                                         biome.Pick(biome.cliffTiles, rng));
                 }
             }
         }
@@ -1425,128 +1428,419 @@ public class MapGenerator : MonoBehaviour
     }
 
     void BuildBridgesOverRivers()
-{
-    if (bridgeTM == null || bridgeTileHorizontal == null || bridgeTileVertical == null)
-        return;
-
-    bool[,] visited = new bool[width, height];
-
-    for (int x = 1; x < width - 1; x++)
     {
-        for (int y = 1; y < height - 1; y++)
+        if (bridgeTM == null || bridgeTileHorizontal == null || bridgeTileVertical == null)
+            return;
+
+        bool[,] visited = new bool[width, height];
+        List<RectangleBridge> bridgeRectangles = new List<RectangleBridge>();
+
+        // ✅ BƯỚC 1: Tìm tất cả các điểm đường bị sông cắt
+        for (int x = 1; x < width - 1; x++)
         {
-            if (!roadMask[x, y] || visited[x, y]) continue;
-
-            // Nếu chỗ này không có nước gần -> bỏ qua
-            bool hasWater = IsWater(new Vector3Int(x + 1, y, 0)) ||
-                            IsWater(new Vector3Int(x - 1, y, 0)) ||
-                            IsWater(new Vector3Int(x, y + 1, 0)) ||
-                            IsWater(new Vector3Int(x, y - 1, 0));
-            if (!hasWater) continue;
-
-            // Nếu hai bên vẫn nối liền -> bỏ qua
-            if (IsStillConnectedAcrossWater(new Vector2Int(x, y), 5))
-                continue;
-
-            // === TÌM TOÀN BỘ VÙNG ĐƯỜNG GẦN NƯỚC LIÊN THÔNG ===
-            List<Vector2Int> cluster = FloodFillRoadCluster(x, y, 6, visited);
-
-            // Xác định hướng chính (ngang hay dọc)
-            bool horizontal = DetectClusterOrientation(cluster);
-
-            // === TÌM RANH GIỚI NƯỚC ===
-            int minX = width, maxX = 0, minY = height, maxY = 0;
-            foreach (var p in cluster)
+            for (int y = 1; y < height - 1; y++)
             {
-                if (p.x < minX) minX = p.x;
-                if (p.x > maxX) maxX = p.x;
-                if (p.y < minY) minY = p.y;
-                if (p.y > maxY) maxY = p.y;
-            }
+                if (!roadMask[x, y] || visited[x, y]) continue;
 
-            int halfW = Mathf.Max(1, roadWidth / 2);
-            int extraLen = 1;
+                // 1. Kiểm tra xem có nước kề trực tiếp không
+                bool hasWater = IsWater(new Vector3Int(x + 1, y, 0)) ||
+                                IsWater(new Vector3Int(x - 1, y, 0)) ||
+                                IsWater(new Vector3Int(x, y + 1, 0)) ||
+                                IsWater(new Vector3Int(x, y - 1, 0));
 
-            if (horizontal)
-            {
-                // Mở rộng theo chiều Y để che toàn bộ hàng nếu có đoạn cầu lệch
-                minY -= halfW;
-                maxY += halfW;
-                minX -= extraLen;
-                maxX += extraLen;
-            }
-            else
-            {
-                minX -= halfW;
-                maxX += halfW;
-                minY -= extraLen;
-                maxY += extraLen;
-            }
+                if (!hasWater) continue;
 
-            // === VẼ 1 HÌNH CẦU DUY NHẤT ===
-            TileBase bridgeTile = horizontal ? bridgeTileHorizontal : bridgeTileVertical;
+                // 2. Kiểm tra xem sông có CẮT ĐỨT kết nối đường không
+                if (IsRoadStillConnectedAcrossWater(new Vector2Int(x, y)))
+                    continue;
 
-            for (int bx = minX; bx <= maxX; bx++)
-            {
-                for (int by = minY; by <= maxY; by++)
+                // 3. Kiểm tra thực sự bị sông chặn
+                if (!IsActuallyBlockedByRiver(new Vector2Int(x, y)))
+                    continue;
+
+                // === QUAN TRỌNG: TÌM TOÀN BỘ ĐƯỜNG CÙNG HƯỚNG BỊ SÔNG CẮT ===
+                List<Vector2Int> allAffectedRoads = FindAllConnectedRoadsByRiver(x, y);
+
+                // === TẠO MỘT CẦU DUY NHẤT CHO TOÀN BỘ ĐƯỜNG BỊ ẢNH HƯỞNG ===
+                RectangleBridge unifiedBridge = CreateUnifiedRectangleBridge(allAffectedRoads, visited);
+                if (unifiedBridge.IsValid)
                 {
-                    if (!InBounds(bx, by)) continue;
-                    var bp = new Vector3Int(bx, by, 0);
-                    waterTM?.SetTile(bp, null);
-                    foregroundTM?.SetTile(bp, null);
-                    roadTM?.SetTile(bp, null);
-                    groundTM?.SetTile(bp, null);
-                    bridgeTM.SetTile(bp, bridgeTile);
-                    visited[bx, by] = true;
+                    bridgeRectangles.Add(unifiedBridge);
                 }
             }
         }
-    }
-}
 
-List<Vector2Int> FloodFillRoadCluster(int sx, int sy, int range, bool[,] visited)
-{
-    List<Vector2Int> result = new();
-    Queue<Vector2Int> q = new();
-    q.Enqueue(new Vector2Int(sx, sy));
-    visited[sx, sy] = true;
+        // ✅ BƯỚC 2: HỢP CÁC CẦU GẦN NHAU THÀNH CẦU DUY NHẤT (giải quyết pic5)
+        List<RectangleBridge> finalBridges = MergeNearbyBridges(bridgeRectangles);
 
-    Vector2Int[] dirs = { new(1,0), new(-1,0), new(0,1), new(0,-1) };
-
-    while (q.Count > 0)
-    {
-        var p = q.Dequeue();
-        result.Add(p);
-        foreach (var d in dirs)
+        // === VẼ TẤT CẢ CÁS CẦU CUỐI CÙNG ===
+        foreach (var bridge in finalBridges)
         {
-            var n = p + d;
-            if (!InBounds(n.x, n.y)) continue;
-            if (visited[n.x, n.y]) continue;
-            if (Vector2Int.Distance(new(sx, sy), n) > range) continue;
-            if (!roadMask[n.x, n.y]) continue;
-            visited[n.x, n.y] = true;
-            q.Enqueue(n);
+            DrawRectangleBridge(bridge);
         }
     }
-    return result;
-}
 
-bool DetectClusterOrientation(List<Vector2Int> pts)
-{
-    // Xác định hướng chiếm ưu thế của cụm đường
-    int minX = int.MaxValue, maxX = int.MinValue;
-    int minY = int.MaxValue, maxY = int.MinValue;
-    foreach (var p in pts)
+    // ✅ HÀM MỚI: Tìm tất cả các đoạn đường liên quan bị sông cắt trong cùng hướng
+    List<Vector2Int> FindAllConnectedRoadsByRiver(int startX, int startY)
     {
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
-    }
-    return (maxX - minX) >= (maxY - minY);
-}
+        List<Vector2Int> allRoads = new List<Vector2Int>();
+        bool[,] localVisited = new bool[width, height];
+        Queue<Vector2Int> queue = new Queue<Vector2Int>();
+        Vector2Int[] dirs = { new(1, 0), new(-1, 0), new(0, 1), new(0, -1) };
 
-bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < width && y < height;
+        // Xác định hướng chính từ điểm bắt đầu
+        Vector2Int direction = FindMainDirection(startX, startY);
+
+        queue.Enqueue(new Vector2Int(startX, startY));
+        localVisited[startX, startY] = true;
+        allRoads.Add(new Vector2Int(startX, startY));
+
+        // Tìm tất cả các đoạn đường cùng hướng bị sông ảnh hưởng
+        while (queue.Count > 0)
+        {
+            Vector2Int current = queue.Dequeue();
+
+            foreach (Vector2Int dir in dirs)
+            {
+                Vector2Int next = current + dir;
+
+                if (!InBounds(next.x, next.y) || localVisited[next.x, next.y]) continue;
+
+                // Chỉ đi theo hướng chính
+                if (dir != direction && dir != -direction) continue;
+
+                // Kiểm tra có phải đường và bị sông ảnh hưởng không
+                if (roadMask[next.x, next.y] && IsAffectedByRiver(next.x, next.y))
+                {
+                    localVisited[next.x, next.y] = true;
+                    allRoads.Add(next);
+                    queue.Enqueue(next);
+                }
+            }
+        }
+
+        return allRoads;
+    }
+
+    // ✅ Xác định hướng chính của đường tại vị trí này
+    Vector2Int FindMainDirection(int x, int y)
+    {
+        // Đếm số ô đường theo chiều ngang và dọc
+        int horizontalCount = 0;
+        int verticalCount = 0;
+
+        // Kiểm tra ngang
+        for (int i = -3; i <= 3; i++)
+        {
+            if (InBounds(x + i, y) && roadMask[x + i, y]) horizontalCount++;
+            if (InBounds(x, y + i) && roadMask[x, y + i]) verticalCount++;
+        }
+
+        return horizontalCount > verticalCount ? new Vector2Int(1, 0) : new Vector2Int(0, 1);
+    }
+
+    // ✅ Kiểm tra xem ô đường này có bị sông ảnh hưởng không
+    bool IsAffectedByRiver(int x, int y)
+    {
+        // Có nước kề và bị cắt đứt
+        bool hasWater = IsWater(new Vector3Int(x + 1, y, 0)) ||
+                        IsWater(new Vector3Int(x - 1, y, 0)) ||
+                        IsWater(new Vector3Int(x, y + 1, 0)) ||
+                        IsWater(new Vector3Int(x, y - 1, 0));
+
+        return hasWater && !IsRoadStillConnectedAcrossWater(new Vector2Int(x, y));
+    }
+
+    // ✅ HÀM MỚI: Tạo bridge hình chữ nhật đồng bộ cho tất cả các đoạn đường bị ảnh hưởng
+    RectangleBridge CreateUnifiedRectangleBridge(List<Vector2Int> allRoads, bool[,] visited)
+    {
+        RectangleBridge bridge = new RectangleBridge();
+
+        if (allRoads == null || allRoads.Count == 0)
+        {
+            bridge.IsValid = false;
+            return bridge;
+        }
+
+        // 1. Tìm bounding box của TẤT CẢ các đoạn đường
+        int minX = width, maxX = 0, minY = height, maxY = 0;
+        foreach (var p in allRoads)
+        {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        }
+
+        // 2. Xác định hướng chính
+        bool horizontal = DetectClusterOrientation(allRoads);
+        bridge.isHorizontal = horizontal;
+
+        // 3. TẠO HÌNH CHỮ NHẬT ĐỒNG BỘ - MỞ RỘNG TOÀN BỘ
+        int bridgeWidth = 7; // Chiều rộng cầu cố định
+        int centerOffset = bridgeWidth / 2;
+
+        if (horizontal)
+        {
+            // Cầu ngang: kéo dài qua TOÀN BỘ đoạn đường bị ảnh hưởng
+            bridge.minX = minX - 1; // Mở rộng thêm ở mỗi đầu
+            bridge.maxX = maxX + 1;
+
+            // Chiều rộng đồng bộ trên toàn bộ chiều dài
+            bridge.minY = minY - centerOffset;
+            bridge.maxY = maxY + centerOffset;
+        }
+        else
+        {
+            // Cầu dọc: kéo dài qua TOÀN BỘ đoạn đường bị ảnh hưởng
+            bridge.minY = minY - 1; // Mở rộng thêm ở mỗi đầu
+            bridge.maxY = maxY + 1;
+
+            // Chiều rộng đồng bộ trên toàn bộ chiều dài
+            bridge.minX = minX - centerOffset;
+            bridge.maxX = maxX + centerOffset;
+        }
+
+        // 4. Đảm bảo trong bounds
+        bridge.minX = Mathf.Max(1, bridge.minX);
+        bridge.maxX = Mathf.Min(width - 2, bridge.maxX);
+        bridge.minY = Mathf.Max(1, bridge.minY);
+        bridge.maxY = Mathf.Min(height - 2, bridge.maxY);
+
+        // 5. Đánh dấu toàn bộ vùng cầu đã visited để tránh tạo cầu chồng chéo
+        for (int x = bridge.minX; x <= bridge.maxX; x++)
+        {
+            for (int y = bridge.minY; y <= bridge.maxY; y++)
+            {
+                visited[x, y] = true;
+            }
+        }
+
+        bridge.IsValid = true;
+        return bridge;
+    }
+
+    // ✅ KIỂM TRA MỚI: Hai bên đường có còn kết nối không qua sông?
+    bool IsRoadStillConnectedAcrossWater(Vector2Int roadPos)
+    {
+        Queue<Vector2Int> q = new Queue<Vector2Int>();
+        bool[,] visitedLocal = new bool[width, height];
+        Vector2Int[] dirs = { new(1, 0), new(-1, 0), new(0, 1), new(0, -1) };
+
+        q.Enqueue(roadPos);
+        visitedLocal[roadPos.x, roadPos.y] = true;
+
+        while (q.Count > 0)
+        {
+            var cur = q.Dequeue();
+            foreach (var d in dirs)
+            {
+                Vector2Int nb = cur + d;
+                if (!InBounds(nb.x, nb.y) || visitedLocal[nb.x, nb.y]) continue;
+
+                // Không đi qua nước
+                if (IsWater(new Vector3Int(nb.x, nb.y, 0))) continue;
+
+                if (roadMask[nb.x, nb.y])
+                {
+                    // Nếu tìm được đường ở khoảng cách xa -> vẫn kết nối được
+                    if (Vector2Int.Distance(roadPos, nb) > 8f)
+                    {
+                        return true; // Vẫn kết nối -> không cần cầu
+                    }
+
+                    visitedLocal[nb.x, nb.y] = true;
+                    q.Enqueue(nb);
+                }
+            }
+        }
+
+        return false; // Không kết nối được -> cần cầu
+    }
+
+    // ✅ KIỂM TRA MỚI: Có thực sự bị sông chặn không?
+    bool IsActuallyBlockedByRiver(Vector2Int roadPos)
+    {
+        // Tìm đường thẳng từ vị trí này ra các hướng
+        foreach (int dist in new[] { 1, 2, 3, 4, 5 })
+        {
+            // Kiểm tra 4 hướng thẳng
+            if (CheckStraightLineBlocking(roadPos, new Vector2Int(1, 0), dist)) return true;  // Phải
+            if (CheckStraightLineBlocking(roadPos, new Vector2Int(-1, 0), dist)) return true; // Trái
+            if (CheckStraightLineBlocking(roadPos, new Vector2Int(0, 1), dist)) return true;  // Lên
+            if (CheckStraightLineBlocking(roadPos, new Vector2Int(0, -1), dist)) return true; // Xuống
+        }
+
+        return false;
+    }
+
+    // Kiểm tra đường thẳng có bị nước chặn bao nhiêu ô liên tiếp
+    bool CheckStraightLineBlocking(Vector2Int start, Vector2Int dir, int maxDist)
+    {
+        int waterCount = 0;
+        bool foundRoadAfterWater = false;
+
+        for (int i = 1; i <= maxDist; i++)
+        {
+            Vector2Int check = start + dir * i;
+            if (!InBounds(check.x, check.y)) break;
+
+            if (IsWater(new Vector3Int(check.x, check.y, 0)))
+            {
+                waterCount++;
+            }
+            else if (roadMask[check.x, check.y] && waterCount > 0)
+            {
+                foundRoadAfterWater = true;
+                break;
+            }
+        }
+
+        // Chỉ bị chặn nếu có nhiều hơn 2 ô nước liên tiếp và có đường bên kia
+        return waterCount >= 2 && foundRoadAfterWater;
+    }
+
+    
+
+    // === TẠO HÌNH CHỮ NHẬT HOÀN HẢO CHO CẦU (GIỐNG HÌNH 2) ===
+    RectangleBridge CreateOptimalRectangleBridge(List<Vector2Int> cluster, bool[,] visited)
+    {
+        RectangleBridge bridge = new RectangleBridge();
+
+        if (cluster == null || cluster.Count == 0)
+        {
+            bridge.IsValid = false;
+            return bridge;
+        }
+
+        // 1. TìmBounding Box của cụm đường
+        int minX = width, maxX = 0, minY = height, maxY = 0;
+        foreach (var p in cluster)
+        {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        }
+
+        // 2. Xác định hướng chính
+        bool horizontal = DetectClusterOrientation(cluster);
+        bridge.isHorizontal = horizontal;
+
+        // 3. TẠO HÌNH CHỮ NHẬT HOÀN HẢO - KHÔNG BỊ BIẾN DẠNG
+        // Cầu luôn có chiều rộng cố định
+        int bridgeWidth = 7; // Chiều rộng cầu cố định (luôn số lẻ để đối xứng)
+        int centerOffset = bridgeWidth / 2;
+
+        if (horizontal)
+        {
+            // Cầu ngang: dài theo đường, rộng cố định
+            bridge.minX = minX - 1; // Mở rộng thêm 1 block ở mỗi đầu để đẹp hơn
+            bridge.maxX = maxX + 1;
+
+            // Tìm trung tâm và tạo hình chữ nhật hoàn hảo
+            int centerY = (minY + maxY) / 2;
+            bridge.minY = centerY - centerOffset;
+            bridge.maxY = centerY + centerOffset;
+        }
+        else
+        {
+            // Cầu dọc: dài theo đường, rộng cố định
+            bridge.minY = minY - 1; // Mở rộng thêm 1 block ở mỗi đầu để đẹp hơn
+            bridge.maxY = maxY + 1;
+
+            // Tìm trung tâm và tạo hình chữ nhật hoàn hảo
+            int centerX = (minX + maxX) / 2;
+            bridge.minX = centerX - centerOffset;
+            bridge.maxX = centerX + centerOffset;
+        }
+
+        // 4. Đảm bảo trong bounds
+        bridge.minX = Mathf.Max(1, bridge.minX);
+        bridge.maxX = Mathf.Min(width - 2, bridge.maxX);
+        bridge.minY = Mathf.Max(1, bridge.minY);
+        bridge.maxY = Mathf.Min(height - 2, bridge.maxY);
+
+        // 5. Đánh dấu toàn bộ vùng cầu đã visited
+        for (int x = bridge.minX; x <= bridge.maxX; x++)
+        {
+            for (int y = bridge.minY; y <= bridge.maxY; y++)
+            {
+                visited[x, y] = true;
+            }
+        }
+
+        bridge.IsValid = true;
+        return bridge;
+    }
+
+    // === VẼ HÌNH CHỮ NHẬT CẦU ===
+    void DrawRectangleBridge(RectangleBridge bridge)
+    {
+        TileBase bridgeTile = bridge.isHorizontal ? bridgeTileHorizontal : bridgeTileVertical;
+
+        if (bridgeTile == null) return;
+
+        for (int x = bridge.minX; x <= bridge.maxX; x++)
+        {
+            for (int y = bridge.minY; y <= bridge.maxY; y++)
+            {
+                if (!InBounds(x, y)) continue;
+                var bp = new Vector3Int(x, y, 0);
+
+                // Xóa mọi thứ và đặt cầu
+                waterTM?.SetTile(bp, null);
+                foregroundTM?.SetTile(bp, null);
+                roadTM?.SetTile(bp, null);
+                groundTM?.SetTile(bp, null);
+                bridgeTM.SetTile(bp, bridgeTile);
+            }
+        }
+    }
+
+    List<Vector2Int> FloodFillRoadCluster(int sx, int sy, int range, bool[,] visited)
+    {
+        List<Vector2Int> result = new();
+        Queue<Vector2Int> q = new();
+        q.Enqueue(new Vector2Int(sx, sy));
+        visited[sx, sy] = true;
+
+        Vector2Int[] dirs = { new(1, 0), new(-1, 0), new(0, 1), new(0, -1) };
+
+        while (q.Count > 0)
+        {
+            var p = q.Dequeue();
+            result.Add(p);
+            foreach (var d in dirs)
+            {
+                var n = p + d;
+                if (!InBounds(n.x, n.y)) continue;
+                if (visited[n.x, n.y]) continue;
+                if (Vector2Int.Distance(new(sx, sy), n) > range) continue;
+                if (!roadMask[n.x, n.y]) continue;
+                visited[n.x, n.y] = true;
+                q.Enqueue(n);
+            }
+        }
+        return result;
+    }
+
+    bool DetectClusterOrientation(List<Vector2Int> pts)
+    {
+        // Xác định hướng chiếm ưu thế của cụm đường
+        int minX = int.MaxValue, maxX = int.MinValue;
+        int minY = int.MaxValue, maxY = int.MinValue;
+        foreach (var p in pts)
+        {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        }
+        return (maxX - minX) >= (maxY - minY);
+    }
+
+    bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < width && y < height;
 
 
 
@@ -1635,7 +1929,7 @@ bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < width && y < height;
                     continue; // bỏ qua nước tại vùng cầu
                 }
 
-                // còn lại vẽ nước bình thường
+                // còn lại vẽ nước bình thường - spawn theo lưới 1x1
                 foregroundTM.SetTile(p, biome.Pick(biome.waterTiles, rng));
                 if (!IsFromSet(groundTM.GetTile(p), biome.grassTiles))
                     groundTM.SetTile(p, biome.Pick(biome.grassTiles, rng));
@@ -2117,7 +2411,118 @@ bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < width && y < height;
             Debug.LogWarning("❌ Không tìm thấy đường đến Camp!");
         }
     }
+    // ✅ HÀM MỚI: Hợp các cầu gần nhau thành một cầu duy nhất (giải quyết pic5)
+    List<RectangleBridge> MergeNearbyBridges(List<RectangleBridge> bridges)
+    {
+        List<RectangleBridge> merged = new List<RectangleBridge>();
+        bool[] mergedFlags = new bool[bridges.Count];
 
+        for (int i = 0; i < bridges.Count; i++)
+        {
+            if (mergedFlags[i]) continue;
+
+            // Bắt đầu với cầu hiện tại
+            RectangleBridge currentBridge = bridges[i];
+            mergedFlags[i] = true;
+
+            // Tìm tất cả các cầu gần nhau (cùng hướng và gần)
+            for (int j = i + 1; j < bridges.Count; j++)
+            {
+                if (mergedFlags[j]) continue;
+
+                RectangleBridge otherBridge = bridges[j];
+
+                // Kiểm tra có cần hợp không
+                if (ShouldMergeBridges(currentBridge, otherBridge))
+                {
+                    // Hợp hai cầu lại
+                    currentBridge = MergeTwoBridges(currentBridge, otherBridge);
+                    mergedFlags[j] = true;
+                }
+            }
+
+            merged.Add(currentBridge);
+        }
+
+        return merged;
+    }
+
+    // ✅ Kiểm tra hai cầu có nên hợp lại không (để giải quyết pic5)
+    bool ShouldMergeBridges(RectangleBridge bridge1, RectangleBridge bridge2)
+    {
+        // Chỉ hợp nếu cùng hướng
+        if (bridge1.isHorizontal != bridge2.isHorizontal) return false;
+
+        int mergeThreshold = 5; // Khoảng cách tối đa để hợp (số ô)
+
+        if (bridge1.isHorizontal)
+        {
+            // Cầu ngang: kiểm tra khoảng cách theo trục X
+            int xDistance = Mathf.Max(0, bridge2.minX - bridge1.maxX - 1);
+            if (xDistance <= mergeThreshold)
+            {
+                // Kiểm tra có chồng chéo theo trục Y không
+                int yOverlap = Mathf.Min(bridge1.maxY, bridge2.maxY) -
+                              Mathf.Max(bridge1.minY, bridge2.minY) + 1;
+                return yOverlap > 2; // Chỉ hợp nếu chồng chéo ít nhất 2 ô
+            }
+        }
+        else
+        {
+            // Cầu dọc: kiểm tra khoảng cách theo trục Y
+            int yDistance = Mathf.Max(0, bridge2.minY - bridge1.maxY - 1);
+            if (yDistance <= mergeThreshold)
+            {
+                // Kiểm tra có chồng chéo theo trục X không
+                int xOverlap = Mathf.Min(bridge1.maxX, bridge2.maxX) -
+                              Mathf.Max(bridge1.minX, bridge2.minX) + 1;
+                return xOverlap > 2; // Chỉ hợp nếu chồng chéo ít nhất 2 ô
+            }
+        }
+
+        return false;
+    }
+
+    // ✅ Hợp hai cầu thành một cầu lớn hơn (để giải quyết pic5)
+    RectangleBridge MergeTwoBridges(RectangleBridge bridge1, RectangleBridge bridge2)
+    {
+        RectangleBridge merged = new RectangleBridge();
+        merged.isHorizontal = bridge1.isHorizontal;
+
+        // Bounding box bao gồm cả hai cầu
+        merged.minX = Mathf.Min(bridge1.minX, bridge2.minX);
+        merged.maxX = Mathf.Max(bridge1.maxX, bridge2.maxX);
+        merged.minY = Mathf.Min(bridge1.minY, bridge2.minY);
+        merged.maxY = Mathf.Max(bridge1.maxY, bridge2.maxY);
+
+        // Sau khi hợp, cần điều chỉnh lại để đồng bộ
+        int bridgeWidth = 7;
+        int centerOffset = bridgeWidth / 2;
+
+        if (merged.isHorizontal)
+        {
+            // Đảm bảo chiều rộng đồng bộ trên toàn bộ chiều dài
+            int centerY = (merged.minY + merged.maxY) / 2;
+            merged.minY = centerY - centerOffset;
+            merged.maxY = centerY + centerOffset;
+        }
+        else
+        {
+            // Đảm bảo chiều rộng đồng bộ trên toàn bộ chiều dài
+            int centerX = (merged.minX + merged.maxX) / 2;
+            merged.minX = centerX - centerOffset;
+            merged.maxX = centerX + centerOffset;
+        }
+
+        // Đảm bảo trong bounds
+        merged.minX = Mathf.Max(1, merged.minX);
+        merged.maxX = Mathf.Min(width - 2, merged.maxX);
+        merged.minY = Mathf.Max(1, merged.minY);
+        merged.maxY = Mathf.Min(height - 2, merged.maxY);
+
+        merged.IsValid = true;
+        return merged;
+    }
 
 }
 
@@ -2336,3 +2741,4 @@ public class AStarPathfinder
         return (Mathf.Abs(a.x - b.x) + Mathf.Abs(a.y - b.y)) * 10;
     }
 }
+

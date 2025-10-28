@@ -78,7 +78,9 @@
     <Compile Include="Assets\Scripts\Ui\MouseFollow.cs" />
     <Compile Include="Assets\Scripts\Player\PlayerController.cs" />
     <Compile Include="Assets\Scripts\Enemies\IEnemy.cs" />
+    <Compile Include="Assets\Scripts\NPCManager.cs" />
     <Compile Include="Assets\Scripts\Enemies\GrapeProjective.cs" />
+    <Compile Include="Assets\Scripts\NPCRoutineAI.cs" />
     <Compile Include="Assets\Scripts\Misc\Destructable.cs" />
     <Compile Include="Assets\Scripts\PickUp.cs" />
     <Compile Include="Assets\Scripts\MainMenu.cs" />
@@ -89,6 +91,7 @@
     <Compile Include="Assets\Scripts\Ui\MagicLazer.cs" />
     <Compile Include="Assets\Scripts\Enemies\EnemyHealth.cs" />
     <Compile Include="Assets\Scripts\Management\UiFade.cs" />
+    <Compile Include="Assets\Scripts\FlowerManager.cs" />
     <Compile Include="Assets\Scripts\Management\CameraController.cs" />
     <Compile Include="Assets\Scripts\Misc\KnockBack.cs" />
     <Compile Include="Assets\Scripts\Player\ProjectTile.cs" />
@@ -96,6 +99,7 @@
     <Compile Include="Assets\Scripts\Management\SceneEntrance.cs" />
     <Compile Include="Assets\Scripts\Ui\Bow.cs" />
     <Compile Include="Assets\Scripts\Random Idle.cs" />
+    <Compile Include="Assets\Scripts\FlowerMarking.cs" />
     <Compile Include="Assets\Scripts\UIInventoryItem.cs" />
     <Compile Include="Assets\Scripts\Ui\InventorySlot.cs" />
     <Compile Include="Assets\Scripts\Enemies\GrapeLand.cs" />
@@ -104,6 +108,7 @@
     <Compile Include="Assets\TreeCycle.cs" />
     <Compile Include="Assets\Scripts\Management\SceneManagement.cs" />
     <Compile Include="Assets\Scripts\Player\PlayerHealth.cs" />
+    <Compile Include="Assets\TalkingTrigger.cs" />
     <Compile Include="Assets\Scripts\InventoryItem.cs" />
     <Compile Include="Assets\Scripts\Player\SlashAnim.cs" />
     <Compile Include="Assets\Samples\OpenAI Unity\0.2.2\Whisper\SaveWav.cs" />

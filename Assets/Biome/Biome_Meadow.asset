@@ -34,7 +34,7 @@ MonoBehaviour:
     weight: 0
   props:
   - prefab: {fileID: 743519695853087583, guid: e5e27c298d1fa0441bbd1a07a3dbe6c0, type: 3}
-    density: 0.02
+    density: 0.0003
   - prefab: {fileID: 3540045815185265912, guid: a8e515deabe07e34fb3ff45fda26032e, type: 3}
     density: 0.035
   - prefab: {fileID: 4476026751929201096, guid: c505e5a0da3d5f94299752bdb66bdc81, type: 3}
@@ -47,6 +47,8 @@ MonoBehaviour:
     density: 0.003
   - prefab: {fileID: 4476026751929201096, guid: 243cefe045796824fb3d88dfcd61eab9, type: 3}
     density: 0.003
+  - prefab: {fileID: 3740587623619406222, guid: f0d62b8f84832b04cb6e1cca25158c2d, type: 3}
+    density: 0.02
   cliffTiles:
   - tile: {fileID: 11400000, guid: 8446a8313ca99cf4cafe23102ab9a170, type: 2}
     weight: 0.2

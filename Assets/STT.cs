@@ -29,10 +29,15 @@ public class SpeechRecognitionTest : MonoBehaviour
     private string micDevice;
     private bool recording;
 
+    // Callback system for NPC integration
+    public System.Action<string> OnSpeechResult;
+    public System.Action OnRecordingStarted;
+    public System.Action OnRecordingStopped;
+
     void Start()
     {
         if (startButton) startButton.onClick.AddListener(StartRecording);
-        if (stopButton)  stopButton.onClick.AddListener(StopRecording);
+        if (stopButton) stopButton.onClick.AddListener(StopRecording);
     }
 
     void Update()
@@ -55,6 +60,9 @@ public class SpeechRecognitionTest : MonoBehaviour
         clip = Microphone.Start(micDevice, false, recordSeconds, targetSampleRate);
         recording = true;
         outputText.text = "Listening...";
+
+        Debug.Log("🎙️ SpeechRecognition: Bắt đầu ghi âm.");
+        OnRecordingStarted?.Invoke();
     }
 
     public void StopRecording()
@@ -64,6 +72,9 @@ public class SpeechRecognitionTest : MonoBehaviour
         int position = Microphone.GetPosition(micDevice);
         Microphone.End(micDevice);
         recording = false;
+
+        Debug.Log("🛑 SpeechRecognition: Dừng ghi âm.");
+        OnRecordingStopped?.Invoke();
 
         if (position <= 0)
         {
@@ -86,30 +97,26 @@ public class SpeechRecognitionTest : MonoBehaviour
         SendRecording(wav);
     }
 
-    private void SendRecording(byte[] wav)
+    public void SendRecording(byte[] wav)
     {
-        // ---------- VARIANT A (most wrappers): ----------
-        // Uses the plugin’s configured ASR endpoint (from its Settings asset).
-        // Signature: AutomaticSpeechRecognition(byte[], onSuccess, onError)
+        Debug.Log("🚀 SpeechRecognition: Gửi file WAV lên HuggingFace...");
         HuggingFaceAPI.AutomaticSpeechRecognition(
             wav,
-            response => { outputText.text = string.IsNullOrEmpty(response) ? "(empty)" : response; },
-            error    => { outputText.text = "ASR error: " + error; }
+            response =>
+            {
+                Debug.Log($"📝 Kết quả transcribe: \"{response}\"");
+                outputText.text = string.IsNullOrEmpty(response) ? "(empty)" : response;
+                OnSpeechResult?.Invoke(response); // callback cho NPC
+            },
+            error =>
+            {
+                Debug.LogError($"❌ Lỗi ASR: {error}");
+                outputText.text = "ASR error: " + error;
+                OnSpeechResult?.Invoke(null);
+            }
         );
-
-        // ---------- VARIANT B (some wrappers): ----------
-        // If your wrapper **requires** passing token/model explicitly, comment Variant A
-        // above and **uncomment** the call below:
-        /*
-        HuggingFaceAPI.AutomaticSpeechRecognition(
-            wav,
-            hfApiToken,        // hf_... token
-            modelId,           // e.g., "openai/whisper-tiny" (no URL)
-            response => { outputText.text = string.IsNullOrEmpty(response) ? "(empty)" : response; },
-            error    => { outputText.text = "ASR error: " + error; }
-        );
-        */
     }
+
 
     // ----- helpers -----
 

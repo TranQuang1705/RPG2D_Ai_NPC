@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Grass
   - Wood
+  - Flower
+  - VillageCenter
+  - NPC
   layers:
   - Default
   - TransparentFX
@@ -13,11 +16,11 @@ TagManager:
   - Camera
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
-  - 
+  - NPC
+  - Ground
+  - Obstacle
+  - NPCTrigger
+  - Player
   - 
   - 
   - 
@@ -60,4 +63,7 @@ TagManager:
     locked: 0
   - name: Floor
     uniqueID: 2999314547
+    locked: 0
+  - name: NPC
+    uniqueID: 1777397667
     locked: 0
