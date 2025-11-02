@@ -76,6 +76,11 @@ public class NPCRoutineAI : MonoBehaviour
     private Vector3 currentTargetPosition;
     private Animator animator;
     private float currentGameTime = 8.5f; // ✅ SET 8:30 AM để test FlowerHunting ngay!
+    
+    [Header("Time-based Flower Hunting")]
+    public bool useRealTimeManager = true; // Sử dụng TimeManager thật
+    public float flowerHuntingStartHour = 15f; // 3:00 PM
+    public float flowerHuntingEndHour = 18f; // 6:00 PM
     private Coroutine activityCoroutine;
     private Coroutine gatheringCoroutine;
 
@@ -185,8 +190,8 @@ public class NPCRoutineAI : MonoBehaviour
 
         // Debug.Log($"📏 Settings: WanderRadius={wanderRadius}, FlowerDetection={flowerDetectionRadius}");
 
-        // ✅ Simple flower hunting only - no time routines
-        StartCoroutine(SimpleFlowerHunting());
+        // ✅ Use time-based routine system instead of simple flower hunting
+        StartCoroutine(TimeBasedRoutine());
     }
 
     // ✅ ORIGINAL FINDER - KEEP ALL FLOWERS!
@@ -254,63 +259,55 @@ public class NPCRoutineAI : MonoBehaviour
 
 
 
-    // ✅ SIMPLE FLOWER HUNTING - NO TIME ROUTINES!
-    IEnumerator SimpleFlowerHunting()
+    // ✅ TIME-BASED ROUTINE - CHỈ HÁI HOA 15:00-18:00
+    IEnumerator TimeBasedRoutine()
     {
-        // Debug.Log($"🌸 {gameObject.name}: Simple Flower Hunting STARTED!");
-        int loopCount = 0;
-
-        while (true) // Chỉ làm 1 việc: đi và hái hoa
+        // Debug.Log($"⏰ {gameObject.name}: Time-based routine STARTED! Flower hunting: {flowerHuntingStartHour}:00-{flowerHuntingEndHour}:00");
+        
+        while (true)
         {
-            loopCount++;
-
-            // Log mỗi 10 vòng để // Debug
-            if (loopCount % 600 == 1)
+            // Cập nhật hoạt động dựa trên thời gian
+            UpdateCurrentActivity();
+            
+            // Kiểm tra xem có phải giờ hái hoa không
+            if (currentActivity == NPCActivity.FlowerHunting)
             {
-                // Debug.Log($"💭 Loop {loopCount}: {gameObject.name} still hunting...");
-            }
-
-            // Tìm bông hoa gần nhất (simplified)
-            FlowerObject nearestFlower = FindNearestFlowerSimple();
-
-            if (nearestFlower != null)
-            {
-                // Debug.Log($"🎯 {gameObject.name}: Found flower '{nearestFlower.gameObject.name}' → going there!");
-
-                // Di chuyển đến hoa
-                yield return StartCoroutine(MoveToPosition(nearestFlower.position));
-
-                // Kiểm tra đã đến gần chưa
-                float distance = Vector3.Distance(transform.position, nearestFlower.position);
-                if (distance <= flowerDetectionRadius)
-                {
-                    // Debug.Log($"✅ {gameObject.name}: Reached flower - time to gather!");
-
-                    // Hái hoa
-                    yield return StartCoroutine(GatherFlower(nearestFlower));
-
-                    // Sau khi hái, short break
-                    yield return new WaitForSeconds(2f);
-                }
-                else
-                {
-                    // Debug.LogWarning($"⚠️ Couldn't get close enough to flower (distance: {distance})");
-                }
+                // Debug.Log($"🌸 {gameObject.name}: Đang trong giờ hái hoa ({TimeManager.Instance?.GetCurrentTimeString()})");
+                yield return StartCoroutine(FlowerHuntingRoutine());
             }
             else
             {
-                // Debug.Log($"🔍 {gameObject.name}: No flowers found - wandering randomly...");
-
-                // Random wandering
-                Vector3 randomPoint = villageCenter.position +
-                    new Vector3(Random.Range(-wanderRadius, wanderRadius), Random.Range(-wanderRadius, wanderRadius), 0f);
-
-                yield return StartCoroutine(MoveToPosition(randomPoint));
+                // Đứng im hoặc các hoạt động khác
+                // Debug.Log($"😴 {gameObject.name}: Không phải giờ hái hoa, đang đứng im ({TimeManager.Instance?.GetCurrentTimeString()})");
+                yield return StartCoroutine(IdleRoutine());
             }
-
-            // Short delay before next action
+            
+            // Kiểm tra lại sau 1 giây
             yield return new WaitForSeconds(1f);
         }
+    }
+    
+    // ✅ IDLE ROUTINE - ĐỨNG IM KHI KHÔNG PHẢI GIỜ HÁI HOA
+    IEnumerator IdleRoutine()
+    {
+        currentState = NPCState.Idle;
+        
+        // Đứng yên ở vị trí hiện tại
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.velocity = Vector2.zero;
+        }
+        
+        // Set animation idle
+        if (animator)
+        {
+            animator.SetBool("Walking", false);
+            animator.SetBool("Idle", true);
+        }
+        
+        // Đứng yên trong 1 giây rồi kiểm tra lại thời gian
+        yield return new WaitForSeconds(1f);
     }
 
 
@@ -356,7 +353,9 @@ public class NPCRoutineAI : MonoBehaviour
 
     void UpdateCurrentActivity()
     {
-        float hour = currentGameTime;
+        // Sử dụng TimeManager nếu có
+        float hour = useRealTimeManager && TimeManager.Instance != null ? 
+            TimeManager.Instance.GetCurrentHour() : currentGameTime;
 
         // ✅ // Debug: Log current time and activity
         float lastLogTime = -999f;
@@ -366,22 +365,27 @@ public class NPCRoutineAI : MonoBehaviour
             lastLogTime = Time.time;
         }
 
-        if (hour >= 23f || hour < 6f)
-            currentActivity = NPCActivity.Sleep;
-        else if (hour >= 6f && hour < 8f)
-            currentActivity = NPCActivity.MorningRoutine;
-        else if (hour >= 8f && hour < 12f)
+        // Chỉ cho phép hái hoa trong khung giờ 15:00-18:00 (3-6 PM)
+        if (hour >= flowerHuntingStartHour && hour < flowerHuntingEndHour)
+        {
             currentActivity = NPCActivity.FlowerHunting;
-        else if (hour >= 12f && hour < 13f)
-            currentActivity = NPCActivity.LunchBreak;
-        else if (hour >= 13f && hour < 17f)
-            currentActivity = NPCActivity.ExploreVillage;
-        else if (hour >= 17f && hour < 20f)
-            currentActivity = NPCActivity.EveningRoutine;
-        else if (hour >= 20f && hour < 22f)
-            currentActivity = NPCActivity.SocialTime;
-        else if (hour >= 22f && hour < 23f)
-            currentActivity = NPCActivity.NightRoutine;
+        }
+        else
+        {
+            // Các hoạt động khác cho thời gian còn lại
+            if (hour >= 23f || hour < 6f)
+                currentActivity = NPCActivity.Sleep;
+            else if (hour >= 6f && hour < 8f)
+                currentActivity = NPCActivity.MorningRoutine;
+            else if (hour >= 8f && hour < flowerHuntingStartHour)
+                currentActivity = NPCActivity.ExploreVillage; // Thay thế FlowerHunting cũ
+            else if (hour >= flowerHuntingEndHour && hour < 20f)
+                currentActivity = NPCActivity.ExploreVillage; // Lang thang sau khi hết giờ hái hoa
+            else if (hour >= 20f && hour < 22f)
+                currentActivity = NPCActivity.SocialTime;
+            else if (hour >= 22f && hour < 23f)
+                currentActivity = NPCActivity.NightRoutine;
+        }
     }
 
     // === ACTIVITY ROUTINES ===
@@ -1121,8 +1125,8 @@ public class NPCRoutineAI : MonoBehaviour
         if (!isPaused) return;
         isPaused = false;
 
-        if (currentActivity == NPCActivity.FlowerHunting)
-            StartCoroutine(SimpleFlowerHunting());
+        // Sử dụng time-based routine
+        StartCoroutine(TimeBasedRoutine());
     }
 
 
@@ -1176,7 +1180,28 @@ public class NPCRoutineAI : MonoBehaviour
 
     public float GetCurrentGameTime()
     {
-        return currentGameTime;
+        return useRealTimeManager && TimeManager.Instance != null ? 
+            TimeManager.Instance.GetCurrentHour() : currentGameTime;
+    }
+    
+    // ✅ Method để kiểm tra có phải giờ hái hoa không
+    public bool IsFlowerHuntingTime()
+    {
+        float currentHour = GetCurrentGameTime();
+        return currentHour >= flowerHuntingStartHour && currentHour < flowerHuntingEndHour;
+    }
+    
+    // ✅ Method để set thời gian thủ công (cho testing)
+    public void SetCustomTime(float hour)
+    {
+        currentGameTime = hour;
+        useRealTimeManager = false; // Tạm tắt TimeManager khi set thủ công
+    }
+    
+    // ✅ Method để bật lại TimeManager
+    public void UseTimeManager(bool use)
+    {
+        useRealTimeManager = use;
     }
 
     void OnDrawGizmosSelected()
