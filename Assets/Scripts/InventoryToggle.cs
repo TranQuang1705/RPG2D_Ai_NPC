@@ -8,6 +8,7 @@ public class InventoryToggle : MonoBehaviour
     public Rigidbody2D playerRb;         // rigidbody của nhân vật
     public GameObject activeWeapon;      // vũ khí đang cầm (child ở tay)
 
+
     // --- state nội bộ
     bool isOpen;
     bool weaponWasActive;

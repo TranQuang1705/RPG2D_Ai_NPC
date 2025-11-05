@@ -19,6 +19,8 @@ public class ResponseParams
     public string target_label;
     public string shop_id;
     public string name;
+    public string location;
+    public string item;
 }
 
 public class NavActionHandler : MonoBehaviour
@@ -78,6 +80,11 @@ public class NavActionHandler : MonoBehaviour
 
             case "ANIM":
                 ShowHint($"🎬 Playing animation: {resp.@params?.name}");
+                break;
+                
+            case "GATHER_FLOWER":
+                Debug.Log($"🌸 GATHER_FLOWER → location={resp.@params?.location}, item={resp.@params?.item}");
+                StartCoroutine(HandleFlowerGathering(resp));
                 break;
 
             default:
@@ -147,6 +154,53 @@ public class NavActionHandler : MonoBehaviour
 
         ShowHint($"🪶 Follow the lights to {target}");
         StartCoroutine(MonitorPlayerArrival(camp.transform.position)); 
+    }
+
+    /// <summary>
+    /// Handle flower gathering request
+    /// </summary>
+    IEnumerator HandleFlowerGathering(ServerResponse resp)
+    {
+        // Find all NPCs - specifically Snow NPCs
+        NPC[] allNPCs = FindObjectsOfType<NPC>();
+        
+        // Filter for Snow NPCs (girl NPCs)
+        List<NPC> snowNPCs = new List<NPC>();
+        foreach (NPC npc in allNPCs)
+        {
+            // Check if this NPC has "Snow" in its name or tag
+            if (npc.name.ToLower().Contains("snow") || 
+                (npc.gameObject.tag.ToLower().Contains("snow")))
+            {
+                snowNPCs.Add(npc);
+            }
+        }
+        
+        if (snowNPCs.Count == 0)
+        {
+            ShowHint("🌸 Could not find any Snow NPCs to gather flowers!");
+            yield break;
+        }
+        
+        // Pick a random Snow NPC to respond
+        int randomIndex = Random.Range(0, snowNPCs.Count);
+        NPC chosenNPC = snowNPCs[randomIndex];
+        
+        // Get the NPC's routine AI component
+        NPCRoutineAI routineAI = chosenNPC.GetComponent<NPCRoutineAI>();
+        if (routineAI != null)
+        {
+            // Trigger flower gathering in the NPC's routine
+            routineAI.PlayerMadeGatheringRequest();
+            ShowHint($"🌸 {chosenNPC.name} has heard your request and will go gather flowers!");
+            Debug.Log($"🌸 Triggered flower gathering for {chosenNPC.name}");
+        }
+        else
+        {
+            ShowHint($"🌸 {chosenNPC.name} doesn't have routine AI component!");
+        }
+        
+        yield break;
     }
 
     /// <summary>

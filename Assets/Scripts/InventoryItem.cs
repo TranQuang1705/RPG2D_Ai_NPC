@@ -8,7 +8,7 @@ public class InventorySystem : MonoBehaviour
     public static InventorySystem Instance { get; private set; }
 
     [Header("Config")]
-    [Min(1)] public int capacity = 24;                    // số ô
+    [Min(1)] public int capacity = 12;                    // số ô
     [SerializeField] private List<InventorySlotBag> slots = new();
 
     // UI có thể lắng nghe 2 loại sự kiện này để refresh
@@ -17,17 +17,27 @@ public class InventorySystem : MonoBehaviour
 
     public IReadOnlyList<InventorySlotBag> Slots => slots;
     public int Capacity => slots.Count;
+    
+    // Provide access to internal slots list for modification
+    public List<InventorySlotBag> GetInternalSlots() => slots;
+    
+    // Public method to trigger inventory changed event
+    public void NotifyInventoryChanged()
+    {
+        OnInventoryChanged?.Invoke();
+    }
 
     void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
 
-        if (slots.Count != capacity)
-        {
-            slots = new List<InventorySlotBag>(capacity);
-            for (int i = 0; i < capacity; i++) slots.Add(new InventorySlotBag());
-        }
+        // Force override to 12 slots regardless of Inspector value
+        capacity = 12;
+        slots = new List<InventorySlotBag>(capacity);
+        for (int i = 0; i < capacity; i++) slots.Add(new InventorySlotBag());
+        
+        Debug.Log($"[InventorySystem] Initialized with capacity {capacity} slots.");
     }
 
     // ---------- ADD ----------

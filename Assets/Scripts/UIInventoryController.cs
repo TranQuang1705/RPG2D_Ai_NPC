@@ -92,9 +92,19 @@ namespace Inventory.UI
                 : null;
 
             if (slot == null || slot.IsEmpty)
+            {
                 Debug.Log($"[UI] Click slot {clicked.Index}: (empty)");
+                // Ẩn panel chi tiết khi click vào slot trống
+                if (ItemDetailPanel.Instance != null)
+                    ItemDetailPanel.Instance.Hide();
+            }
             else
+            {
                 Debug.Log($"[UI] Click slot {clicked.Index}: {slot.item.displayName} x{slot.quantity}");
+                // Hiển thị panel chi tiết khi click vào item
+                if (ItemDetailPanel.Instance != null)
+                    ItemDetailPanel.Instance.ShowDetails(slot.item);
+            }
         }
 
         int GetTargetCapacity()

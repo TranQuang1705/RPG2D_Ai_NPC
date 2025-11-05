@@ -69,8 +69,11 @@
     <Compile Include="Assets\Scripts\NPC.cs" />
     <Compile Include="Assets\Scripts\Enemies\Shooter.cs" />
     <Compile Include="Assets\Scripts\SceneChange.cs" />
+    <Compile Include="Assets\Scripts\Database\DatabasePlayer.cs" />
     <Compile Include="Assets\Scripts\PickUpSpawner.cs" />
     <Compile Include="Assets\Scripts\Player\ActiveWeapon.cs" />
+    <Compile Include="Assets\Scripts\TimeUI.cs" />
+    <Compile Include="Assets\Scripts\Sever\ItemFetcher.cs" />
     <Compile Include="Assets\Scripts\Enemies\EnemyPathfinding.cs" />
     <Compile Include="Assets\SpeechToTextTesting.cs" />
     <Compile Include="Assets\Scripts\Management\Singleton.cs" />
@@ -83,6 +86,7 @@
     <Compile Include="Assets\Scripts\NPCRoutineAI.cs" />
     <Compile Include="Assets\Scripts\Misc\Destructable.cs" />
     <Compile Include="Assets\Scripts\PickUp.cs" />
+    <Compile Include="Assets\Scripts\DatabasePickupItem.cs" />
     <Compile Include="Assets\Scripts\MainMenu.cs" />
     <Compile Include="Assets\Scripts\SceneSwitcher.cs" />
     <Compile Include="Assets\BiomeDefinition.cs" />
@@ -90,6 +94,7 @@
     <Compile Include="Assets\Scripts\UIInventoryController.cs" />
     <Compile Include="Assets\Scripts\Ui\MagicLazer.cs" />
     <Compile Include="Assets\Scripts\Enemies\EnemyHealth.cs" />
+    <Compile Include="Assets\Scripts\PrefabCreator.cs" />
     <Compile Include="Assets\Scripts\Management\UiFade.cs" />
     <Compile Include="Assets\Scripts\FlowerManager.cs" />
     <Compile Include="Assets\Scripts\Management\CameraController.cs" />
@@ -99,7 +104,9 @@
     <Compile Include="Assets\Scripts\Management\SceneEntrance.cs" />
     <Compile Include="Assets\Scripts\Ui\Bow.cs" />
     <Compile Include="Assets\Scripts\Random Idle.cs" />
+    <Compile Include="Assets\Scripts\ItemDetailPanel.cs" />
     <Compile Include="Assets\Scripts\FlowerMarking.cs" />
+    <Compile Include="Assets\Scripts\Sever\GlobalItemManager.cs" />
     <Compile Include="Assets\Scripts\UIInventoryItem.cs" />
     <Compile Include="Assets\Scripts\Ui\InventorySlot.cs" />
     <Compile Include="Assets\Scripts\Enemies\GrapeLand.cs" />
@@ -110,9 +117,12 @@
     <Compile Include="Assets\Scripts\Player\PlayerHealth.cs" />
     <Compile Include="Assets\TalkingTrigger.cs" />
     <Compile Include="Assets\Scripts\InventoryItem.cs" />
+    <Compile Include="Assets\Scripts\TimeBasedRoutineTester.cs" />
     <Compile Include="Assets\Scripts\Player\SlashAnim.cs" />
     <Compile Include="Assets\Samples\OpenAI Unity\0.2.2\Whisper\SaveWav.cs" />
+    <Compile Include="Assets\Scripts\InventorySlotManager.cs" />
     <Compile Include="Assets\Scripts\Player\Stamina.cs" />
+    <Compile Include="Assets\Scripts\TilledSoil.cs" />
     <Compile Include="Assets\Scripts\Ui\ActiveInventory.cs" />
     <Compile Include="Assets\Scripts\RandomTreeAnimation.cs" />
     <Compile Include="Assets\FirefileGuide.cs" />
@@ -122,10 +132,12 @@
     <Compile Include="Assets\Scripts\Management\GamePause.cs" />
     <Compile Include="Assets\Scripts\Indestructible.cs" />
     <Compile Include="Assets\Scripts\Misc\Screen Shake.cs" />
+    <Compile Include="Assets\Scripts\DatabaseItemManager.cs" />
     <Compile Include="Assets\NpcChatSpeaker.cs" />
     <Compile Include="Assets\Scripts\Player\Sword.cs" />
     <Compile Include="Assets\MicToNpcReplay.cs" />
     <Compile Include="Assets\GameManager2.cs" />
+    <Compile Include="Assets\Scripts\TimeManager.cs" />
     <Compile Include="Assets\POIRegistry.cs" />
     <Compile Include="Assets\Scripts\CreditSequenceController.cs" />
     <Compile Include="Assets\Scripts\Misc\Transparent Detection.cs" />
@@ -143,9 +155,11 @@
     <Compile Include="Assets\Scripts\Misc\Flash.cs" />
     <Compile Include="Assets\Scripts\Ui\Staff.cs" />
     <Compile Include="Assets\Scripts\BossHealth.cs" />
+    <Compile Include="Assets\Scripts\Sever\JsonHelper.cs" />
     <Compile Include="Assets\ChatClient.cs" />
     <Compile Include="Assets\Scripts\Ui\WeaponInfo.cs" />
     <Compile Include="Assets\Scripts\Audio.cs" />
+    <Compile Include="Assets\Scripts\ColorController.cs" />
     <Compile Include="Assets\Scripts\Grape.cs" />
     <Compile Include="Assets\Samples\OpenAI Unity\0.2.2\Whisper\Whisper.cs" />
     <Compile Include="Assets\Scripts\Player\DamageSource.cs" />

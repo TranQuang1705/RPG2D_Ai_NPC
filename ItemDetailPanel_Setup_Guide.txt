@@ -1,0 +1,176 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    HƯỚNG DẪN SETUP ITEM DETAIL PANEL                          ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+📋 MÔ TẢ:
+    Hệ thống hiển thị chi tiết item bên phải inventory khi click vào 1 item.
+    Hiển thị: Hình ảnh, Tên, Chi tiết (mô tả, giá bán, loại, trọng lượng, v.v.)
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 BƯỚC 1: TẠO UI TRONG UNITY HIERARCHY
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Tạo Panel chính:
+   - Right-click trong Hierarchy → UI → Panel
+   - Đổi tên: "ItemDetailPanel"
+   - Đặt vị trí: Bên phải màn hình inventory
+
+2. Tạo các UI Elements con trong ItemDetailPanel:
+
+   📌 A) ItemImage (Hình ảnh item):
+      - Right-click ItemDetailPanel → UI → Image
+      - Đổi tên: "ItemImage"
+      - Vị trí: Phía trên panel
+      - Size: 128x128 hoặc 150x150
+      - Preserve Aspect: Bật
+
+   📌 B) ItemName (Tên item):
+      - Right-click ItemDetailPanel → UI → Text - TextMeshPro
+      - Đổi tên: "ItemName"
+      - Vị trí: Dưới ItemImage
+      - Font Size: 24-28
+      - Alignment: Center
+      - Style: Bold
+
+   📌 C) ItemDetail (Chi tiết item):
+      - Right-click ItemDetailPanel → UI → Text - TextMeshPro
+      - Đổi tên: "ItemDetail"
+      - Vị trí: Dưới ItemName
+      - Font Size: 14-16
+      - Alignment: Top Left
+      - Enable Rich Text: BẬT (để hiển thị màu sắc)
+      - Vertical Overflow: Overflow (hoặc thêm ScrollView nếu cần)
+
+═══════════════════════════════════════════════════════════════════════════════
+🔧 BƯỚC 2: GẮN SCRIPT VÀ CONNECT REFERENCES
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Chọn GameObject "ItemDetailPanel"
+2. Add Component → "ItemDetailPanel" script
+3. Trong Inspector của ItemDetailPanel script:
+
+   Panel Root          → Kéo GameObject "ItemDetailPanel" vào đây
+   Item Image          → Kéo GameObject "ItemImage" vào đây
+   Item Name Text      → Kéo GameObject "ItemName" vào đây
+   Item Detail Text    → Kéo GameObject "ItemDetail" vào đây
+   
+   Settings:
+   ☑ Hide On Start          → BẬT (panel ẩn khi bắt đầu game)
+   ☐ Use Individual Fields  → TẮT (dùng text block kết hợp)
+
+═══════════════════════════════════════════════════════════════════════════════
+🎨 BƯỚC 3: THIẾT KẾ GIAO DIỆN (TÙY CHỌN)
+═══════════════════════════════════════════════════════════════════════════════
+
+Để UI đẹp hơn, điều chỉnh các thuộc tính sau:
+
+📌 ItemDetailPanel (Panel chính):
+   - Color: Alpha 220-240 (nửa trong suốt)
+   - Add Outline hoặc Shadow để tạo độ sâu
+   - Rect Transform:
+     * Anchor: Right (neo bên phải)
+     * Width: 300-400
+     * Height: 500-600
+
+📌 ItemImage:
+   - Background Color: Đen hoặc Trắng nhạt
+   - Add Border (Image con với scale lớn hơn một chút)
+
+📌 ItemName:
+   - Color: Vàng hoặc Trắng
+   - Font: Bold
+   - Add Outline/Shadow
+
+📌 ItemDetail:
+   - Color: Trắng
+   - Background: Đen nhạt (alpha 100)
+   - Padding: 10-15px
+
+═══════════════════════════════════════════════════════════════════════════════
+⚙️ BƯỚC 4: KIỂM TRA KẾT NỐI
+═══════════════════════════════════════════════════════════════════════════════
+
+Đảm bảo các script đã được kết nối đúng:
+
+1. ✅ ItemDetailPanel.cs → Gắn vào GameObject "ItemDetailPanel"
+2. ✅ UIInventoryController.cs → Đã được cập nhật (tự động gọi ItemDetailPanel)
+3. ✅ UIInventoryItem.cs → Xử lý click event (đã có sẵn)
+
+═══════════════════════════════════════════════════════════════════════════════
+🧪 BƯỚC 5: TEST
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Chạy game (Play Mode)
+2. Mở inventory
+3. Click vào 1 item trong inventory
+4. Panel bên phải sẽ hiển thị:
+   - Hình ảnh item
+   - Tên item
+   - Mô tả chi tiết (giá bán, loại, trọng lượng, độ hiếm, v.v.)
+5. Click vào slot trống → Panel sẽ ẩn
+
+═══════════════════════════════════════════════════════════════════════════════
+🔄 CÁCH SỬ DỤNG NÂNG CAO
+═══════════════════════════════════════════════════════════════════════════════
+
+📌 OPTION A: Dùng Text Block kết hợp (MẶC ĐỊNH)
+   - Use Individual Fields = FALSE
+   - Tất cả thông tin hiển thị trong 1 TextMeshPro
+   - Tự động format với màu sắc và icon
+
+📌 OPTION B: Dùng từng field riêng biệt
+   - Use Individual Fields = TRUE
+   - Thêm các GameObject TextMeshPro riêng:
+     * DescriptionText → Hiển thị mô tả
+     * PriceText → Hiển thị giá
+     * TypeText → Hiển thị loại
+     * WeightText → Hiển thị trọng lượng
+     * RarityText → Hiển thị độ hiếm
+   - Kéo vào các field tương ứng trong Inspector
+
+═══════════════════════════════════════════════════════════════════════════════
+📂 VỊ TRÍ CÁC FILE
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ ItemDetailPanel.cs
+   → Assets/Scripts/ItemDetailPanel.cs
+
+✅ UIInventoryController.cs (đã cập nhật)
+   → Assets/Scripts/UIInventoryController.cs
+
+✅ UIInventoryItem.cs (đã có sẵn)
+   → Assets/Scripts/UIInventoryItem.cs
+
+═══════════════════════════════════════════════════════════════════════════════
+🐛 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ Panel không hiện lên khi click item:
+   ✓ Kiểm tra ItemDetailPanel GameObject có active trong scene không
+   ✓ Kiểm tra ItemDetailPanel.Instance != null
+   ✓ Kiểm tra Console log có lỗi không
+
+❌ Hình ảnh không hiển thị:
+   ✓ Kiểm tra ItemSO có sprite icon không
+   ✓ Kiểm tra ItemImage component có được gán đúng không
+
+❌ Text không hiển thị đầy đủ:
+   ✓ Tăng kích thước GameObject ItemDetail
+   ✓ Bật Vertical Overflow = Overflow
+   ✓ Hoặc thêm ScrollView
+
+❌ Click item không có phản ứng:
+   ✓ Kiểm tra UIInventoryController có UIInventoryPanel component không
+   ✓ Kiểm tra event OnItemClicked có được subscribe không
+
+═══════════════════════════════════════════════════════════════════════════════
+💡 GHI CHÚ
+═══════════════════════════════════════════════════════════════════════════════
+
+- Script sử dụng Singleton pattern (ItemDetailPanel.Instance)
+- Tự động ẩn panel khi click vào slot trống
+- Hỗ trợ Rich Text để hiển thị màu sắc và format đẹp
+- Có sẵn hàm chuyển đổi tiếng Việt cho itemType, rarity, effects
+- Dễ dàng customize thêm các thông tin khác nếu cần
+
+═══════════════════════════════════════════════════════════════════════════════

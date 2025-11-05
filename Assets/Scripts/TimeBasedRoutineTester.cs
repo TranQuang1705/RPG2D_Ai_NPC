@@ -13,6 +13,7 @@ public class TimeBasedRoutineTester : MonoBehaviour
 
     private float timer = 0f;
     private NPCRoutineAI[] npcs;
+    private NPCRoutineAI npcRoutineHelper;
 
     void Start()
     {
@@ -38,11 +39,12 @@ public class TimeBasedRoutineTester : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.T))
         {
             // Chuyển qua các thời điểm test quan trọng
-            if (testHour < 8f) testHour = 10f;         // Sáng (không hái hoa)
-            else if (testHour < 12f) testHour = 14f;    // Trưa (không hái hoa)
-            else if (testHour < 15f) testHour = 16f;    // Chiều (hái hoa)
-            else if (testHour < 18f) testHour = 19f;    // Tối (không hái hoa)
-            else if (testHour < 22f) testHour = 23f;    // Đêm (không hái hoa)
+            if (testHour < 7f) testHour = 7f;           // Sáng (đang xới đất)
+            else if (testHour < 9f) testHour = 10f;     // Sáng (dọn dẹp)
+            else if (testHour < 12f) testHour = 13f;    // Trưa (nghỉ trưa)
+            else if (testHour < 14f) testHour = 14.5f;  // Chiều (hái hoa - 14:30)
+            else if (testHour < 17f) testHour = 19f;    // Tối (không làm việc)
+            else if (testHour < 22f) testHour = 23f;    // Đêm (không làm việc)
             else testHour = 6f;                         // Reset về sáng sớm
             
             SetTestTime(testHour);
@@ -81,11 +83,24 @@ public class TimeBasedRoutineTester : MonoBehaviour
             GUILayout.Label($"Flower Hunting Time: {npcs[0].IsFlowerHuntingTime()}");
             GUILayout.Label($"Using TimeManager: {npcs[0].useRealTimeManager}");
             GUILayout.Label($"Real Time: {TimeManager.Instance?.GetCurrentTimeString()}");
+            
+            // Hiển thị thông tin flower hunting
+            npcRoutineHelper = npcs[0];
+            if (npcRoutineHelper != null)
+            {
+                using (new GUILayout.VerticalScope("box"))
+                {
+                    GUILayout.Label("=== Schedule Info ===");
+                    GUILayout.Label($"Flower Hunting: {npcRoutineHelper.flowerHuntingStartHour}:00-{npcRoutineHelper.flowerHuntingEndHour}:00");
+                    GUILayout.Label($"Flower Hunting Time: {npcRoutineHelper.IsFlowerHuntingTime()}");
+                }
+            }
         }
         
         GUILayout.Space(10);
         GUILayout.Label("Press T: Change test time");
         GUILayout.Label("Press M: Toggle TimeManager");
+        GUILayout.Label("Flower Hunting: 14:00-16:00");
         
         if (GUILayout.Button(autoChangeTime ? "Stop Auto Time" : "Start Auto Time"))
         {
@@ -94,5 +109,14 @@ public class TimeBasedRoutineTester : MonoBehaviour
         }
         
         GUILayout.EndArea();
+    }
+    
+    // Helper method để đọc private field (chỉ cho testing)
+    T GetPrivateField<T>(object obj, string fieldName)
+    {
+        var field = obj.GetType().GetField(fieldName, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        if (field != null)
+            return (T)field.GetValue(obj);
+        return default(T);
     }
 }

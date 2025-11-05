@@ -33,7 +33,7 @@ INTENT_EMB = {k: EMB_MODEL.encode(v, convert_to_tensor=True) for k, v in INTENT_
 INTENT_THRESHOLD = 0.55
 
 OLLAMA_URL = "http://127.0.0.1:1234/v1/chat/completions"
-MODEL_NAME = "llama-3.2-3b-instruct"
+MODEL_NAME = "Llama-3.2-3B-Instruct-GGUF"
 
 system_prompt = (
     "You are Snow, a gentle young girl in the countryside. "
@@ -207,6 +207,8 @@ def chat():
         intent = "trade"
     elif any(k in low_text for k in ["bye", "goodbye"]):
         intent = "farewell"
+    elif any(k in low_text for k in ["flower", "pick", "gather", "bloom", "petal"]):
+        intent = "gather_flower"
     #Cải thiện phát hiện intent dựa trên từ khóa cụ thể trong văn bản người dùng
     history.append({"role": "user", "content": f"[intent={intent}] {user_input}"})
     #Lưu lịch sử hội thoại với định dạng đặc biệt để bao gồm intent
@@ -214,16 +216,27 @@ def chat():
     payload = {"model": MODEL_NAME, "messages": messages}
     # Tạo payload cho yêu cầu API Ollama với lịch sử hội thoại
     try:
-        print(f"[DEBUG] Sending to Ollama: {OLLAMA_URL}")
+        print(f"[DEBUG] Sending to LM Studio: {OLLAMA_URL}")
         print(f"[DEBUG] Payload: {payload}")
         resp = requests.post(OLLAMA_URL, json=payload, timeout=60)
-        #Gửi yêu cầu POST đến API Ollama với payload đã tạo
-        print(f"[DEBUG] Ollama response status: {resp.status_code}")
+        #Gửi yêu cầu POST đến API LM Studio với payload đã tạo
+        print(f"[DEBUG] LM Studio response status: {resp.status_code}")
         j = resp.json()
-        reply = (j["choices"][0]["message"]["content"] or "").strip()
-        #Phân tích phản hồi JSON từ Ollama để lấy nội dung trả lời
+
+        # ✅ FIX: LM Studio có thể trả về nội dung ở "choices[0].message.content" hoặc "choices[0].text"
+        reply = (
+            j.get("choices", [{}])[0]
+             .get("message", {})
+             .get("content")
+            or j.get("choices", [{}])[0].get("text", "")
+        )
+        reply = (reply or "").strip()
+        #Phân tích phản hồi JSON từ LM Studio để lấy nội dung trả lời
+
+        if not reply:
+            reply = "(no reply from model)"
     except Exception as e:
-        reply = f"Ollama not reachable: {e}"
+        reply = f"LM Studio not reachable: {e}"
 
     history.append({"role": "assistant", "content": reply or ""})
     #Luu phản hồi của NPC vào lịch sử hội thoại
@@ -251,6 +264,9 @@ def chat():
     elif intent == "farewell":
         action = "ANIM"
         params = {"name": "wave"}
+    elif intent == "gather_flower":
+        action = "GATHER_FLOWER"
+        params = {"target": "flower_field", "target_label": "Wildflowers"}
     else:
         action = "NONE"
     #Cầu nối intent đã phát hiện với các hành động trò chơi cụ thể và tham số liên quan
@@ -262,6 +278,8 @@ def chat():
         "params": params
     }), 200
     #Trả về phản hồi JSON bao gồm văn bản trả lời, URL âm thanh, intent, hành động và tham số
+
+
 
 @app.route("/reset", methods=["POST"])
 def reset():
