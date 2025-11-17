@@ -1,0 +1,408 @@
+===========================================
+HƯỚNG DẪN SETUP QUEST SYSTEM TRONG UNITY
+===========================================
+
+===========================================
+BƯỚC 1: TẠO CÁC GAMEOBJECT QUẢN LÝ
+===========================================
+
+1. QUEST MANAGER (Quản lý Quest)
+   -----------------------------------
+   - Chuột phải trong Hierarchy → Create Empty
+   - Đổi tên: "QuestManager"
+   - Add Component → Tìm "QuestManager"
+   - Gán script: QuestManager.cs
+   
+   Inspector Settings:
+   ├─ Api Base Url: http://127.0.0.1:5002
+   └─ Current Player Id: 1
+
+   ⚠️ LƯU Ý: GameObject này phải có trong scene khi game start!
+
+
+2. QUEST PROGRESS TRACKER (Theo dõi tiến độ)
+   -----------------------------------
+   - Chuột phải trong Hierarchy → Create Empty
+   - Đổi tên: "QuestProgressTracker"
+   - Add Component → Tìm "QuestProgressTracker"
+   - Gán script: QuestProgressTracker.cs
+
+   ⚠️ LƯU Ý: GameObject này cũng phải có trong scene!
+
+
+===========================================
+BƯỚC 2: SETUP UI QUEST PANEL
+===========================================
+
+CÁCH 1: TẠO TỪ ĐẦU
+-----------------------------------
+
+1. TẠO QUEST PANEL (Panel chính)
+   Canvas (có sẵn)
+   └─ QuestPanel (GameObject mới)
+
+   Tạo QuestPanel:
+   - Chuột phải vào Canvas → UI → Image
+   - Đổi tên: "QuestPanel"
+   - Add Component: Button (để click được)
+   - Add Component: QuestPanel.cs ← GÁN SCRIPT
+   
+   Rect Transform:
+   - Anchor: Top-Right
+   - Position: X=-100, Y=-100
+   - Size: 80x80
+
+
+2. TẠO QUEST ICON (Icon của quest)
+   QuestPanel
+   └─ QuestIcon
+
+   - Chuột phải vào QuestPanel → UI → Image
+   - Đổi tên: "QuestIcon"
+   - Gán Sprite: Icon dấu chấm than (!) hoặc icon túi quest
+   - Size: 50x50
+
+
+3. TẠO QUEST COUNT TEXT (Số lượng quest)
+   QuestPanel
+   └─ QuestCountText
+
+   - Chuột phải vào QuestPanel → UI → Text - TextMeshPro
+   - Đổi tên: "QuestCountText"
+   - Text: "0"
+   - Font Size: 20
+   - Color: Vàng/Trắng
+   - Alignment: Center
+   - Position: Góc dưới phải của QuestIcon
+
+
+4. TẠO QUEST DETAIL PANEL (Panel chi tiết quest)
+   QuestPanel
+   └─ QuestDetailPanel
+
+   - Chuột phải vào QuestPanel → UI → Panel
+   - Đổi tên: "QuestDetailPanel"
+   - Add Component: QuestDetailPanel.cs ← GÁN SCRIPT
+   - Size: 600x800
+   - Position: Center screen hoặc bên cạnh QuestPanel
+   
+   ⚠️ QUAN TRỌNG: Tắt GameObject này (uncheck) - nó sẽ tự mở khi click
+
+
+5. TẠO QUEST LIST (Danh sách quest)
+   QuestDetailPanel
+   └─ QuestList (ScrollView)
+       └─ Viewport
+           └─ Content
+
+   - Chuột phải vào QuestDetailPanel → UI → Scroll View
+   - Đổi tên: "QuestList"
+   - Xóa Scrollbar Horizontal (không cần)
+   - Content → Add Component: Vertical Layout Group
+     * Spacing: 10
+     * Child Force Expand: Width = true, Height = false
+
+
+6. TẠO QUEST ITEM PREFAB (Prefab cho mỗi quest trong list)
+   Content
+   └─ QuestItemPrefab
+
+   - Chuột phải vào Content → UI → Panel
+   - Đổi tên: "QuestItemPrefab"
+   - Size: Full Width, Height: 60
+   - Add Component: Button (để click chọn quest)
+   
+   Tạo các text con:
+   QuestItemPrefab
+   ├─ QuestName (TextMeshProUGUI)
+   │  └─ Text: "Quest Name Here"
+   │  └─ Position: Left
+   ├─ Level (TextMeshProUGUI)
+   │  └─ Text: "Lv.1"
+   │  └─ Position: Right
+   └─ Type (TextMeshProUGUI)
+      └─ Text: "[SIDE]"
+      └─ Position: Top-Right
+
+   ⚠️ SAU KHI TẠO XONG:
+   - Kéo QuestItemPrefab vào folder Assets/Prefabs/
+   - Xóa QuestItemPrefab khỏi Content (vì đã có prefab)
+
+
+7. TẠO DETAIL PANEL (Panel hiển thị chi tiết quest được chọn)
+   QuestDetailPanel
+   └─ DetailPanel
+
+   - Chuột phải vào QuestDetailPanel → UI → Panel
+   - Đổi tên: "DetailPanel"
+   - Position: Bên phải QuestList
+   - Size: 400x750
+
+   Tạo các UI elements con:
+
+   a) QuestNameText
+      - UI → Text - TextMeshPro
+      - Text: "Quest Name"
+      - Font Size: 28, Bold
+      - Position: Top of DetailPanel
+
+   b) TaskLevelText
+      - UI → Text - TextMeshPro
+      - Text: "Level Requirement: 1"
+      - Font Size: 18
+      - Position: Below QuestNameText
+
+   c) DetailText (Mô tả quest)
+      - UI → Text - TextMeshPro
+      - Text: "Quest description here..."
+      - Font Size: 16
+      - Word Wrap: Enable
+      - Position: Below TaskLevelText
+
+   d) TaskListContainer
+      - UI → Empty GameObject
+      - Add Component: Vertical Layout Group
+        * Spacing: 5
+        * Child Force Expand: Height = false
+      - Position: Below DetailText
+
+
+8. TẠO TASK ITEM PREFAB (Prefab cho từng task/objective)
+   TaskListContainer
+   └─ TaskItemPrefab
+
+   - Chuột phải vào TaskListContainer → UI → Panel
+   - Đổi tên: "TaskItemPrefab"
+   - Size: Full Width, Height: 40
+   
+   Tạo elements:
+   TaskItemPrefab
+   ├─ TaskText (TextMeshProUGUI)
+   │  └─ Text: "[0/10] Collect 10 Wildflowers"
+   │  └─ Font Size: 16
+   └─ CheckIcon (Image - optional)
+      └─ Sprite: Checkmark icon
+      └─ Ẩn mặc định (uncheck)
+
+   ⚠️ SAU KHI TẠO XONG:
+   - Kéo TaskItemPrefab vào folder Assets/Prefabs/
+   - Xóa TaskItemPrefab khỏi TaskListContainer
+
+
+9. TẠO REWARD TEXT
+   DetailPanel
+   └─ RewardText
+
+   - UI → Text - TextMeshPro
+   - Text: "Rewards:\n• 50 Gold\n• 100 EXP"
+   - Font Size: 16
+   - Color: Vàng/Xanh lá
+   - Position: Below TaskListContainer
+
+
+10. TẠO MARK IMAGE (Icon trạng thái quest)
+    DetailPanel
+    └─ MarkImage
+
+    - UI → Image
+    - Đổi tên: "MarkImage"
+    - Size: 40x40
+    - Position: Top-Right corner
+    - Sprite: Icon dấu chấm than (!) hoặc checkmark
+
+
+11. TẠO CLOSE BUTTON
+    DetailPanel
+    └─ CloseButton
+
+    - UI → Button - TextMeshPro
+    - Text: "✕" hoặc "Close"
+    - Position: Top-Right corner
+    - Size: 40x40
+
+
+===========================================
+BƯỚC 3: GÁN CÁC REFERENCES
+===========================================
+
+Bây giờ gán tất cả references vào script:
+
+1. QUEST PANEL SCRIPT
+   -----------------------------------
+   Chọn GameObject "QuestPanel"
+   
+   Inspector → QuestPanel (Script):
+   ├─ Quest Detail Panel: Kéo "QuestDetailPanel" GameObject vào đây
+   ├─ Quest Panel Button: Button component (auto-filled)
+   ├─ Quest Count Text: Kéo "QuestCountText" vào đây
+   ├─ Quest Icon: Kéo "QuestIcon" Image vào đây
+   ├─ Default Quest Icon: Gán sprite icon quest mặc định
+   ├─ Has Quest Color: Màu vàng (khi có quest)
+   └─ No Quest Color: Màu xám (khi không có quest)
+
+
+2. QUEST DETAIL PANEL SCRIPT
+   -----------------------------------
+   Chọn GameObject "QuestDetailPanel"
+   
+   Inspector → QuestDetailPanel (Script):
+   ├─ Quest List Container: Kéo "Content" (con của ScrollView) vào đây
+   ├─ Quest Item Prefab: Kéo prefab "QuestItemPrefab" từ folder Prefabs vào
+   ├─ Close Button: Kéo "CloseButton" vào đây
+   ├─ Scroll Rect: ScrollRect component (auto-filled)
+   ├─ Detail Panel: Kéo "DetailPanel" GameObject vào đây
+   ├─ Quest Name Text: Kéo "QuestNameText" vào đây
+   ├─ Task Level Text: Kéo "TaskLevelText" vào đây
+   ├─ Detail Text: Kéo "DetailText" vào đây
+   ├─ Task List Container: Kéo "TaskListContainer" vào đây
+   ├─ Task Item Prefab: Kéo prefab "TaskItemPrefab" từ folder Prefabs vào
+   ├─ Reward Text: Kéo "RewardText" vào đây
+   ├─ Mark Image: Kéo "MarkImage" vào đây
+   ├─ In Progress Mark: Gán sprite icon "in progress" (dấu chấm than vàng)
+   └─ Completed Mark: Gán sprite icon "completed" (checkmark xanh)
+
+
+===========================================
+BƯỚC 4: SETUP NPC VỚI QUEST
+===========================================
+
+Cho mỗi NPC muốn giao quest:
+
+1. Chọn NPC GameObject trong Hierarchy
+2. Add Component → NPCQuestGiver
+
+Inspector → NPCQuestGiver (Script):
+├─ Npc Id: Nhập ID của NPC trong database (VD: 1 cho Snow)
+│  ⚠️ ID này phải khớp với bảng npc_quests trong database
+│
+├─ Quest Available Indicator: (Có thể để trống, script sẽ tự tạo)
+│  └─ Hoặc tự tạo: Canvas → Image với sprite dấu chấm than vàng (!)
+│
+├─ Quest Complete Indicator: (Có thể để trống, script sẽ tự tạo)
+│  └─ Hoặc tự tạo: Canvas → Image với sprite dấu chấm than xanh (!)
+│
+├─ Indicator Offset: 1.5 (độ cao của icon trên đầu NPC)
+│
+├─ Can Give Random Quests: ☑ Check nếu muốn NPC giao quest ngẫu nhiên
+│
+└─ Available Quest Pool: (Nếu Can Give Random Quests = true)
+    └─ Size: Số lượng quest
+        ├─ Element 0: ID quest thứ nhất
+        ├─ Element 1: ID quest thứ hai
+        └─ ...
+
+VÍ DỤ CHO NPC SNOW (NPC ID = 1):
+├─ Npc Id: 1
+├─ Indicator Offset: 1.5
+├─ Can Give Random Quests: false (vì có quest cố định)
+└─ Available Quest Pool: Empty (không cần vì có quest cố định)
+
+
+===========================================
+BƯỚC 5: KIỂM TRA SETUP
+===========================================
+
+Checklist đảm bảo setup đúng:
+
+☐ QuestManager GameObject có trong scene
+☐ QuestProgressTracker GameObject có trong scene
+☐ QuestPanel có script QuestPanel.cs
+☐ QuestDetailPanel có script QuestDetailPanel.cs
+☐ Tất cả references đã gán đầy đủ (không có "None")
+☐ QuestItemPrefab và TaskItemPrefab đã tạo thành Prefab
+☐ QuestDetailPanel GameObject đang TẮT (unchecked)
+☐ NPC có NPCQuestGiver.cs với NPC ID đúng
+☐ Flask server đang chạy (python database.py)
+☐ Database có dữ liệu quest
+
+
+===========================================
+BƯỚC 6: TẠO PREFAB CHO QUEST PANEL (TÙY CHỌN)
+===========================================
+
+Nếu muốn dùng Quest UI cho nhiều scene:
+
+1. Kéo toàn bộ QuestPanel (với tất cả con) vào folder Assets/Prefabs/
+2. Đổi tên prefab: "QuestPanelPrefab"
+3. Trong mỗi scene mới, kéo prefab này vào Canvas
+
+
+===========================================
+CÁCH GỌI QUEST PROGRESS TỪ CODE
+===========================================
+
+Khi player nhặt item:
+```csharp
+// Trong script PickUp hoặc Inventory
+void OnItemPickedUp(int itemId, int quantity)
+{
+    if (QuestProgressTracker.Instance != null)
+    {
+        QuestProgressTracker.Instance.OnItemCollected(itemId, quantity);
+    }
+}
+```
+
+Khi player giết enemy:
+```csharp
+// Trong script Enemy health/death
+void OnEnemyDeath()
+{
+    if (QuestProgressTracker.Instance != null)
+    {
+        QuestProgressTracker.Instance.OnEnemyKilled("Forest Slime");
+    }
+}
+```
+
+Khi player nói chuyện với NPC:
+```csharp
+// Trong NPC.cs (đã tự động tích hợp rồi)
+// Không cần thêm gì
+```
+
+
+===========================================
+TROUBLESHOOTING
+===========================================
+
+❌ LỖI: "QuestManager.Instance is null"
+✅ GIẢI PHÁP: Thêm GameObject QuestManager vào scene
+
+❌ LỖI: "Reference not set" khi click quest
+✅ GIẢI PHÁP: Kiểm tra tất cả references trong Inspector đã gán đầy đủ
+
+❌ LỖI: Quest panel không hiện
+✅ GIẢI PHÁP: 
+   - Kiểm tra QuestManager đã load được quest từ server chưa (xem Console)
+   - Kiểm tra Flask server đang chạy
+
+❌ LỖI: NPC không có dấu chấm than
+✅ GIẢI PHÁP:
+   - Kiểm tra NPC ID trong NPCQuestGiver khớp với database
+   - Kiểm tra bảng npc_quests có quest cho NPC này chưa
+
+❌ LỖI: Click vào quest không hiện detail
+✅ GIẢI PHÁP: Kiểm tra DetailPanel reference đã gán trong QuestDetailPanel.cs
+
+
+===========================================
+TÓM TẮT NHANH - CHECKLIST 5 PHÚT
+===========================================
+
+1. ☐ Tạo GameObject "QuestManager" + gán QuestManager.cs
+2. ☐ Tạo GameObject "QuestProgressTracker" + gán QuestProgressTracker.cs
+3. ☐ Tạo UI hierarchy như trên
+4. ☐ Tạo 2 prefab: QuestItemPrefab, TaskItemPrefab
+5. ☐ Gán references vào QuestPanel.cs
+6. ☐ Gán references vào QuestDetailPanel.cs
+7. ☐ Thêm NPCQuestGiver.cs vào NPC + set NPC ID
+8. ☐ Chạy Flask server
+9. ☐ Test game!
+
+
+===========================================
+KẾT THÚC HƯỚNG DẪN
+===========================================
+
+Nếu cần trợ giúp thêm, check Unity Console để xem log messages!

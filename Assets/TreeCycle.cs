@@ -7,8 +7,8 @@ public class TreeStateCycle : MonoBehaviour
     public enum TreeState
     {
         Default = 0,
-        Flower  = 1,
-        Apple   = 2
+        Flower = 1,
+        Apple = 2
     }
 
     [Header("Sprites cho từng state")]
@@ -69,4 +69,15 @@ public class TreeStateCycle : MonoBehaviour
                 break;
         }
     }
+    public TreeState GetCurrentState()
+    {
+        return currentState;
+    }
+
+    public void ForceState(TreeState newState)
+    {
+        currentState = newState;
+        ApplyState(currentState);
+    }
+    
 }

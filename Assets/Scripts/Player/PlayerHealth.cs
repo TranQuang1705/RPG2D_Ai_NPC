@@ -9,17 +9,16 @@ public class PlayerHealth : Singleton<PlayerHealth>
     public bool isDead {  get; private set; }
 
 
-    [SerializeField] private int maxHealth = 3;
+    [SerializeField] private int maxHealth = 10; // 10 HP = 5 hearts
     [SerializeField] private float knockBackThrustAmount = 10f;
     [SerializeField] private float damageRecoveryTime = 1f;
+    [SerializeField] private HeartHealthUI heartHealthUI;
 
-    private Slider healthSlider;
     private int currentHealth;
     private bool canTakeDamage = true;
     private KnockBack knockBack;
     private Flash flash;
 
-    const string HEALTH_SLIDER_TEXT = "Health Slider";
     const string TOWN_TEXT = "Scene1";
     readonly int DEATH_HASH = Animator.StringToHash("Death");
 
@@ -33,7 +32,16 @@ public class PlayerHealth : Singleton<PlayerHealth>
     {
         isDead = false;
         currentHealth = maxHealth;
-        UpdateHealthSlider();
+        
+        if (heartHealthUI != null)
+        {
+            heartHealthUI.InitHearts(maxHealth);
+            heartHealthUI.UpdateHearts(currentHealth, maxHealth);
+        }
+        else
+        {
+            Debug.LogError("❌ PlayerHealth: HeartHealthUI not assigned!");
+        }
     }
     private void OnCollisionStay2D(Collision2D other)
     {
@@ -43,14 +51,17 @@ public class PlayerHealth : Singleton<PlayerHealth>
             TakeDamage(1, other.transform);
         }
     }
-    public void HealhPlayer()
+    public void HealPlayer()
     {
         if(currentHealth < maxHealth)
         {
             currentHealth += 1;
-            UpdateHealthSlider();
+            if (heartHealthUI != null)
+            {
+                heartHealthUI.UpdateHearts(currentHealth, maxHealth);
+            }
+            Debug.Log($"💚 Player healed: {currentHealth}/{maxHealth} HP");
         }
-        
     }
     public void TakeDamage(int damageAmount, Transform hitTransform)
     {
@@ -61,7 +72,13 @@ public class PlayerHealth : Singleton<PlayerHealth>
         canTakeDamage = false;
         currentHealth -= damageAmount;
         StartCoroutine(DamageRecoveryRoutine());
-        UpdateHealthSlider();
+        
+        if (heartHealthUI != null)
+        {
+            heartHealthUI.UpdateHearts(currentHealth, maxHealth);
+        }
+        
+        Debug.Log($"💔 Player took {damageAmount} damage: {currentHealth}/{maxHealth} HP");
         CheckPlayerDeath();
     }
     private void CheckPlayerDeath()
@@ -84,14 +101,5 @@ public class PlayerHealth : Singleton<PlayerHealth>
     {
         yield return new WaitForSeconds(damageRecoveryTime);
         canTakeDamage = true;
-    }
-    private void UpdateHealthSlider()
-    {
-        if(healthSlider == null)
-        {
-            healthSlider = GameObject.Find(HEALTH_SLIDER_TEXT).GetComponent<Slider>();
-        }
-        healthSlider.maxValue = maxHealth;
-        healthSlider.value = currentHealth;
     }
 }

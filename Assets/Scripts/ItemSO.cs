@@ -72,7 +72,7 @@ public class ItemSO : ScriptableObject
                 var health = user.GetComponent<PlayerHealth>();
                 if (health != null)
                 {
-                    health.HealhPlayer(); // Implement proper health healing with effectValue
+                    health.HealPlayer(); // Implement proper health healing with effectValue
                     return true;
                 }
                 break;

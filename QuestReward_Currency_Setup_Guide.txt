@@ -1,0 +1,230 @@
+====================================================================
+      HƯỚNG DẪN CÀI ĐẶT HIỂN THỊ TIỀN TỆ & EXP CHO QUEST REWARDS
+====================================================================
+
+📋 TÓM TẮT:
+- Đã refactor QuestDetailPanel.cs để hiển thị phần thưởng với icon
+- Hệ thống quy đổi tiền tệ tự động: Obal → Sylv → Aurum
+- Thêm 4 loại asset icon: Obal, Sylv, Aurum, và EXP
+
+====================================================================
+💰 HỆ THỐNG QUY ĐỔI TIỀN TỆ:
+====================================================================
+
+1 Aurum (Gold)   = 100 Sylv = 10,000 Obal
+1 Sylv (Silver)  = 100 Obal
+1 Obal (Copper)  = Đơn vị cơ bản
+
+Ví dụ chuyển đổi:
+- 15,750 gold → 1 Aurum, 57 Sylv, 50 Obal
+- 350 gold → 3 Sylv, 50 Obal
+- 75 gold → 75 Obal
+
+====================================================================
+🎨 CÀI ĐẶT UI TRONG UNITY:
+====================================================================
+
+📊 HIERARCHY STRUCTURE (Cấu trúc cây GameObject):
+QuestDetailPanel
+└── DetailPanel
+    └── RewardIconsContainer (Horizontal Layout Group)
+        ├── ObalGroup (Horizontal Layout Group)
+        │   ├── Label (TextMeshProUGUI) - Hiển thị "Obal"
+        │   ├── Icon (Image) - Hiển thị coin đồng
+        │   └── Amount (TextMeshProUGUI) - Hiển thị số lượng
+        ├── SylvGroup (Horizontal Layout Group)
+        │   ├── Label (TextMeshProUGUI) - Hiển thị "Sylv"
+        │   ├── Icon (Image) - Hiển thị coin bạc
+        │   └── Amount (TextMeshProUGUI) - Hiển thị số lượng
+        ├── AurumGroup (Horizontal Layout Group)
+        │   ├── Label (TextMeshProUGUI) - Hiển thị "Aurum"
+        │   ├── Icon (Image) - Hiển thị coin vàng
+        │   └── Amount (TextMeshProUGUI) - Hiển thị số lượng
+        └── ExpGroup (Horizontal Layout Group)
+            ├── Label (TextMeshProUGUI) - Hiển thị "Exp"
+            ├── Icon (Image) - Hiển thị star/exp icon
+            └── Amount (TextMeshProUGUI) - Hiển thị số lượng
+
+====================================================================
+
+1. MỞ PREFAB/SCENE VÀ TÌM QuestDetailPanel GameObject
+
+2. THÊM CONTAINER CHO REWARD ICONS:
+   • Tạo GameObject mới tên "RewardIconsContainer" trong Detail Panel
+   • Thêm Horizontal Layout Group component (để sắp xếp các icon ngang)
+   • Layout Settings:
+     - Child Alignment: Middle Left
+     - Child Force Expand: Width=false, Height=false
+     - Spacing: 10-20 pixels
+
+3. TẠO CÁC CURRENCY ICONS (Trong RewardIconsContainer):
+   
+   📌 QUAN TRỌNG: Thứ tự hiển thị sẽ là: Obal → Sylv → Aurum → Exp
+   Mỗi group sẽ có 3 children theo thứ tự: Label → Icon → Amount
+
+   A. OBAL (Copper) GROUP - Hiển thị đầu tiên:
+      • GameObject: "ObalGroup" với Horizontal Layout Group
+        - Child Alignment: Middle Left
+        - Spacing: 5-8 pixels
+      • Child 1: TextMeshProUGUI tên "Label" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Label")
+        - Text: "Obal" (sẽ tự động set bởi code)
+        - Font size: 16-20
+        - Color: Trắng (#FFFFFF)
+        - Alignment: Middle Left
+      • Child 2: Image component tên "Icon" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Icon")
+        - KHÔNG CẦN assign sprite ở đây (sẽ được code tự động gán)
+        - Size: 24x24 hoặc 32x32
+        - Preserve Aspect: Bật
+      • Child 3: TextMeshProUGUI tên "Amount" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Amount")
+        - Font size: 18-24
+        - Color: Đồng (#CD7F32)
+        - Alignment: Middle Left
+        - Font Style: Bold
+   
+   B. SYLV (Silver) GROUP - Hiển thị thứ hai:
+      • GameObject: "SylvGroup" với Horizontal Layout Group
+        - Child Alignment: Middle Left
+        - Spacing: 5-8 pixels
+      • Child 1: TextMeshProUGUI tên "Label" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Label")
+        - Text: "Sylv" (sẽ tự động set bởi code)
+        - Font size: 16-20
+        - Color: Trắng (#FFFFFF)
+        - Alignment: Middle Left
+      • Child 2: Image component tên "Icon" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Icon")
+        - KHÔNG CẦN assign sprite ở đây (sẽ được code tự động gán)
+        - Size: 24x24 hoặc 32x32
+        - Preserve Aspect: Bật
+      • Child 3: TextMeshProUGUI tên "Amount" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Amount")
+        - Font size: 18-24
+        - Color: Bạc (#C0C0C0)
+        - Alignment: Middle Left
+        - Font Style: Bold
+
+   C. AURUM (Gold) GROUP - Hiển thị thứ ba:
+      • GameObject: "AurumGroup" với Horizontal Layout Group
+        - Child Alignment: Middle Left
+        - Spacing: 5-8 pixels
+      • Child 1: TextMeshProUGUI tên "Label" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Label")
+        - Text: "Aurum" (sẽ tự động set bởi code)
+        - Font size: 16-20
+        - Color: Trắng (#FFFFFF)
+        - Alignment: Middle Left
+      • Child 2: Image component tên "Icon" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Icon")
+        - KHÔNG CẦN assign sprite ở đây (sẽ được code tự động gán)
+        - Size: 24x24 hoặc 32x32
+        - Preserve Aspect: Bật
+      • Child 3: TextMeshProUGUI tên "Amount" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Amount")
+        - Font size: 18-24
+        - Color: Vàng (#FFD700)
+        - Alignment: Middle Left
+        - Font Style: Bold
+
+4. TẠO EXP ICON - Hiển thị cuối cùng:
+   • GameObject: "ExpGroup" với Horizontal Layout Group
+     - Child Alignment: Middle Left
+     - Spacing: 5-8 pixels
+   • Child 1: TextMeshProUGUI tên "Label" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Label")
+     - Text: "Exp" (sẽ tự động set bởi code)
+     - Font size: 16-20
+     - Color: Trắng (#FFFFFF)
+     - Alignment: Middle Left
+   • Child 2: Image component tên "Icon" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Icon")
+     - KHÔNG CẦN assign sprite ở đây (sẽ được code tự động gán)
+     - Size: 24x24 hoặc 32x32
+     - Preserve Aspect: Bật
+   • Child 3: TextMeshProUGUI tên "Amount" ⚠️ (QUAN TRỌNG: Phải đặt tên là "Amount")
+     - Font size: 18-24
+     - Color: Xanh/Tím (#00BFFF hoặc #9370DB)
+     - Alignment: Middle Left
+     - Font Style: Bold
+
+5. ASSIGN VÀO QUESTDETAILPANEL COMPONENT:
+   • Select QuestDetailPanel GameObject
+   • Trong Inspector, tìm "Reward Currency Icons" section:
+     - Reward Icons Container → Kéo "RewardIconsContainer" GameObject vào
+     - Obal Group → Kéo "ObalGroup" GameObject vào
+     - Obal Sprite → Kéo sprite đồng/copper coin vào (từ Assets)
+     - Sylv Group → Kéo "SylvGroup" GameObject vào
+     - Sylv Sprite → Kéo sprite bạc/silver coin vào (từ Assets)
+     - Aurum Group → Kéo "AurumGroup" GameObject vào
+     - Aurum Sprite → Kéo sprite vàng/gold coin vào (từ Assets)
+     - Exp Group → Kéo "ExpGroup" GameObject vào
+     - Exp Sprite → Kéo sprite star/exp icon vào (từ Assets)
+
+====================================================================
+🎯 TÌM/TẠO ICON SPRITES:
+====================================================================
+
+Nơi tìm icon:
+1. Unity Asset Store (miễn phí):
+   - "Simple Icon Set"
+   - "Game Icons"
+   - "RPG Icons"
+
+2. Trang web miễn phí:
+   - game-icons.net (SVG, convert sang PNG)
+   - flaticon.com
+   - iconfinder.com
+
+3. Tự tạo trong Photoshop/Figma:
+   - Coin gold: Vòng tròn vàng (#FFD700) với viền sáng
+   - Coin silver: Vòng tròn bạc (#C0C0C0) với viền sáng
+   - Coin copper: Vòng tròn đồng (#CD7F32) với viền sáng
+   - EXP star: Ngôi sao xanh/tím với hiệu ứng phát sáng
+
+Kích thước khuyến nghị: 64x64 đến 128x128 pixels
+
+====================================================================
+⚙️ CÁCH HOẠT ĐỘNG:
+====================================================================
+
+Code tự động:
+1. Nhận reward_gold từ quest (ví dụ: 15,750)
+2. Tính toán quy đổi:
+   - Aurum: 15750 / 10000 = 1
+   - Sylv: (15750 % 10000) / 100 = 57
+   - Obal: 15750 % 100 = 50
+3. Tự động assign sprite vào Image components khi Start()
+4. Tự động set text cho Label components (Obal, Sylv, Aurum, Exp)
+5. Hiển thị label, icon và số lượng tương ứng
+6. Ẩn các groups có giá trị = 0
+
+Ví dụ hiển thị:
+Quest reward_gold = 15750, reward_exp = 2500:
+Obal 🪙 50    Sylv 🪙 57    Aurum 🪙 1    Exp ⭐ 2500
+
+Quest reward_gold = 350, reward_exp = 1000:
+Obal 🪙 50    Sylv 🪙 3    Exp ⭐ 1000
+
+Quest reward_gold = 75, reward_exp = 500:
+Obal 🪙 75    Exp ⭐ 500
+
+📌 Lưu ý:
+- Chỉ hiển thị các currency có giá trị > 0
+- Thứ tự luôn là: Obal → Sylv → Aurum → Exp
+- Label text (Obal, Sylv, Aurum, Exp) giúp người chơi dễ nhận biết loại tiền tệ
+
+====================================================================
+✅ KIỂM TRA:
+====================================================================
+
+1. Chạy game và mở QuestDetailPanel
+2. Chọn một quest có phần thưởng
+3. Kiểm tra phần Rewards:
+   • Các icon hiển thị đúng
+   • Số tiền được quy đổi chính xác
+   • Icon có giá trị 0 bị ẩn
+   • EXP hiển thị riêng với icon riêng
+
+====================================================================
+🐛 DEBUG:
+====================================================================
+
+Nếu không hiển thị:
+1. Check console có lỗi không
+2. Đảm bảo đã assign đủ references trong Inspector
+3. Đảm bảo sprites đã được import vào Unity
+4. Check GameObject có active không
+5. Check RectTransform size có đủ lớn không
+
+====================================================================

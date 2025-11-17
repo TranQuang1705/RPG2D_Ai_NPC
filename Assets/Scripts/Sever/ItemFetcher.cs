@@ -77,7 +77,14 @@ public class ItemFetcher : MonoBehaviour
                         prefabName = System.IO.Path.GetFileNameWithoutExtension(item.model_path);
                         prefabPath = $"Prefabs/{prefabName}";
                         item.prefab = Resources.Load<GameObject>(prefabPath);
-
+                        if (item.prefab != null)
+                        {
+                            var sr = item.prefab.GetComponent<SpriteRenderer>();
+                            if (sr != null)
+                            {
+                                Debug.Log($"🔍 PREFAB '{item.prefab.name}' ban đầu sprite = {sr.sprite?.name}");
+                            }
+                        }
                         Debug.Log($"🎁 Trying to load PREFAB → {prefabPath} | Found={(item.prefab != null ? "✅ YES" : "❌ NO")}");
                     }
                     else

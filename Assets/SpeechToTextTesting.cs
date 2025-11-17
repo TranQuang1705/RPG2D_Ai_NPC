@@ -30,12 +30,20 @@ public class FreeSpeechToTextToggle : MonoBehaviour
 
         dictationRecognizer.DictationHypothesis += (text) =>
         {
-            if (outputTMP) outputTMP.text = text;
+            // Chỉ update khi người chơi thực sự nói (có text)
+            if (!string.IsNullOrEmpty(text) && outputTMP)
+            {
+                outputTMP.text = text;
+            }
         };
 
         dictationRecognizer.DictationResult += (text, confidence) =>
         {
-            if (outputTMP) outputTMP.text = text;
+            // Update text khi có kết quả cuối
+            if (!string.IsNullOrEmpty(text) && outputTMP)
+            {
+                outputTMP.text = text;
+            }
             OnFinalTranscript?.Invoke(text);             // chỉ phát khi có kết quả CUỐI
             if (forwardToBot) StartCoroutine(AskLocalBot(text)); // KHÔNG dùng nếu bridge đã lo gửi
         };
@@ -64,7 +72,9 @@ public class FreeSpeechToTextToggle : MonoBehaviour
 
         isListening = true;
         if (buttonLabel) buttonLabel.text = "Stop";
-        if (outputTMP) outputTMP.text = "Đang lắng nghe...";
+        
+        // ✅ KHÔNG hiển thị "Listening..." - giữ text hiện tại (NPC reply)
+        // Text chỉ thay đổi khi người chơi thực sự nói (DictationHypothesis)
     }
 
     // ĐÃ CHUYỂN THÀNH public để Bridge gọi
@@ -75,7 +85,16 @@ public class FreeSpeechToTextToggle : MonoBehaviour
 
         isListening = false;
         if (buttonLabel) buttonLabel.text = "Start";
-        if (outputTMP) outputTMP.text = "Đã dừng nghe.";
+        // Không hiển thị "Stopped" nữa, giữ text hiện tại hoặc hiển thị "Listening..."
+        // outputTMP text sẽ được update bởi NPC reply
+    }
+    
+    /// <summary>
+    /// Public method để NPC hoặc Bridge có thể update text hiển thị
+    /// </summary>
+    public void UpdateDisplayText(string text)
+    {
+        if (outputTMP) outputTMP.text = text;
     }
 
     void OnDestroy()

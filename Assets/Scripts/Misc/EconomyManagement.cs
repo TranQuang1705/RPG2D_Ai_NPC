@@ -21,4 +21,28 @@ public class EconomyManagement : Singleton<EconomyManagement>
 
         goldText.text = currentGold.ToString("D3");
     }
+    
+    public void AddGold(int amount)
+    {
+        if (amount <= 0) return;
+        
+        currentGold += amount;
+
+        if (goldText == null)
+        {
+            goldText = GameObject.Find(COIN_AMOUNT_TEXT)?.GetComponent<TMP_Text>();
+        }
+
+        if (goldText != null)
+        {
+            goldText.text = currentGold.ToString("D3");
+        }
+        
+        Debug.Log($"💰 Added {amount} gold. Total: {currentGold}");
+    }
+    
+    public int GetCurrentGold()
+    {
+        return currentGold;
+    }
 }

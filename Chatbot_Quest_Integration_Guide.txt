@@ -1,0 +1,363 @@
+===========================================
+HƯỚNG DẪN TÍCH HỢP CHATBOT VỚI QUEST SYSTEM
+===========================================
+
+===========================================
+1. TỔNG QUAN HỆ THỐNG
+===========================================
+
+Hệ thống chatbot đã được cập nhật để hiểu và xử lý các yêu cầu liên quan đến quest:
+
+CHATBOT (ChatBox.py)
+   ↓ phân tích ngôn ngữ tự nhiên
+INTENT DETECTION (3 intent mới về quest)
+   ↓ chuyển đổi thành action
+UNITY (ChatbotClient.cs)
+   ↓ gửi action đến NPC
+NPC (NPC.cs + NPCQuestGiver.cs)
+   ↓ thực thi action
+QUEST SYSTEM (QuestManager, QuestPanel, etc.)
+
+
+===========================================
+2. CÁC INTENT MỚI ĐƯỢC THÊM VÀO
+===========================================
+
+1. ask_for_quest
+   ----------------
+   Trigger khi: Người chơi hỏi NPC có cần giúp gì không
+   
+   Ví dụ câu:
+   - "Do you need help?"
+   - "Do you need anything?"
+   - "Can I help you?"
+   - "Any task for me?"
+   - "Do you have work for me?"
+   - "What can I do for you?"
+   - "Any quests?"
+   - "Got any jobs?"
+   
+   Action: ASK_FOR_QUEST
+   Kết quả: NPC sẽ giao quest (có sẵn hoặc random)
+
+
+2. quest_status
+   ----------------
+   Trigger khi: Người chơi hỏi về quest hiện tại
+   
+   Ví dụ câu:
+   - "What is my quest?"
+   - "Show my quests"
+   - "What tasks do I have?"
+   - "Check my quest progress"
+   - "Quest status"
+   - "How is my quest going?"
+   - "What am I supposed to do?"
+   
+   Action: SHOW_QUEST_STATUS
+   Kết quả: Mở QuestPanel UI hiển thị tất cả quest
+
+
+3. complete_quest
+   ----------------
+   Trigger khi: Người chơi muốn nộp/hoàn thành quest
+   
+   Ví dụ câu:
+   - "I finished the quest"
+   - "Quest done"
+   - "I completed the task"
+   - "Here are the items"
+   - "I have what you need"
+   - "Task completed"
+   - "I'm done with the quest"
+   - "Turn in quest"
+   
+   Action: COMPLETE_QUEST
+   Kết quả: Nộp quest và nhận phần thưởng
+
+
+===========================================
+3. CÁCH HOẠT ĐỘNG CỦA HỆ THỐNG
+===========================================
+
+BƯỚC 1: Player nói với NPC
+   - Player: "Do you need anything?"
+
+BƯỚC 2: Unity gửi message đến ChatBox.py
+   POST http://127.0.0.1:5000/chat
+   Body: {"text": "Do you need anything?", "session_id": "default"}
+
+BƯỚC 3: ChatBox.py phân tích intent
+   - Sử dụng Sentence Transformer (all-MiniLM-L6-v2)
+   - Tính cosine similarity với các ví dụ intent
+   - Nếu confidence thấp → dùng LM Studio (Llama) để classify
+   - Kết quả: intent = "ask_for_quest"
+
+BƯỚC 4: ChatBox.py sinh response từ AI
+   - Gọi LM Studio API với system prompt của NPC
+   - NPC Snow: "Oh, yes! I need help collecting wildflowers..."
+   - Đồng thời sinh audio TTS (Edge TTS)
+
+BƯỚC 5: ChatBox.py map intent → action
+   intent = "ask_for_quest"
+   → action = "ASK_FOR_QUEST"
+   → params = {"trigger": "player_ask_help"}
+
+BƯỚC 6: ChatBox.py trả response về Unity
+   Response: {
+     "reply": "Oh, yes! I need help...",
+     "audio_url": "http://127.0.0.1:5000/audio/tmp_abc123.mp3",
+     "intent": "ask_for_quest",
+     "action": "ASK_FOR_QUEST",
+     "params": {"trigger": "player_ask_help"}
+   }
+
+BƯỚC 7: ChatbotClient.cs nhận và xử lý
+   - Lấy reply text → gửi đến NPC.SpeakResponse()
+   - Lấy action → gọi NPC.HandleChatbotAction()
+
+BƯỚC 8: NPC xử lý action
+   - NPC.HandleChatbotAction("ASK_FOR_QUEST", params)
+   - Gọi NPCQuestGiver.OnPlayerAskForQuest()
+
+BƯỚC 9: NPCQuestGiver xử lý
+   - Kiểm tra NPC có quest sẵn không
+   - Nếu không → random quest từ pool
+   - Gọi QuestManager.AcceptQuest(questId)
+
+BƯỚC 10: QuestManager cập nhật database
+   - POST http://127.0.0.1:5002/player_quests/accept
+   - Database cập nhật player_quests và player_quest_progress
+
+BƯỚC 11: UI cập nhật
+   - QuestPanel xuất hiện (nếu đang ẩn)
+   - Hiển thị số lượng quest active
+   - Player có thể click để xem chi tiết
+
+
+===========================================
+4. SETUP TRONG UNITY
+===========================================
+
+A. TẠO CHATBOT CLIENT
+   ----------------------
+   1. Tạo Empty GameObject: "ChatbotClient"
+   2. Add Component: ChatbotClient.cs
+   3. Inspector settings:
+      ├─ Chatbot Url: http://127.0.0.1:5000/chat
+      └─ Session Id: default (hoặc unique per player)
+
+
+B. KIỂM TRA NPC SETUP
+   ----------------------
+   Mỗi NPC cần có:
+   1. NPC.cs (đã có sẵn)
+   2. NPCQuestGiver.cs (thêm vào)
+   3. (Optional) NpcChatSpeaker.cs (nếu dùng TTS)
+
+
+C. KIỂM TRA QUEST SYSTEM
+   ----------------------
+   Scene phải có:
+   1. QuestManager GameObject
+   2. QuestProgressTracker GameObject
+   3. QuestPanel UI trong Canvas
+
+
+===========================================
+5. TESTING FLOW
+===========================================
+
+TEST 1: Player hỏi quest
+   ----------------------
+   1. Chạy Flask servers:
+      - Terminal 1: cd Assets/Web_Item/python_sever/ && python database.py
+      - Terminal 2: python ChatBox.py
+   
+   2. Chạy Unity game
+   
+   3. Tiến đến NPC Snow
+   
+   4. Nói: "Do you need anything?"
+   
+   5. Kiểm tra Console logs:
+      ✅ "💬 ChatbotClient: Sending message: Do you need anything?"
+      ✅ "✅ ChatbotClient: Response received"
+      ✅ "🎯 Intent: ask_for_quest"
+      ✅ "🎮 Action: ASK_FOR_QUEST"
+      ✅ "💬 NPC: Player asked if I need anything"
+      ✅ "📜 NPC gives quest: Gather 10 Wildflowers"
+      ✅ "✅ Quest accepted!"
+   
+   6. Kiểm tra UI:
+      ✅ QuestPanel xuất hiện với số "1"
+      ✅ NPC có dấu chấm than vàng (!)
+
+
+TEST 2: Player xem quest status
+   ----------------------
+   1. Trong khi có quest active
+   
+   2. Nói với bất kỳ NPC nào: "What is my quest?"
+   
+   3. Kiểm tra:
+      ✅ Intent: quest_status
+      ✅ Action: SHOW_QUEST_STATUS
+      ✅ QuestDetailPanel mở ra
+      ✅ Hiển thị danh sách quest và chi tiết
+
+
+TEST 3: Player hoàn thành quest
+   ----------------------
+   1. Nhặt đủ 10 wildflowers (hoặc hoàn thành objective)
+   
+   2. Quay lại NPC Snow
+   
+   3. Nói: "I finished the quest"
+   
+   4. Kiểm tra:
+      ✅ Intent: complete_quest
+      ✅ Action: COMPLETE_QUEST
+      ✅ NPC có dấu chấm than xanh (!) chuyển thành không có
+      ✅ Nhận phần thưởng (gold, exp)
+      ✅ Console: "✅ Quest completed!"
+      ✅ QuestPanel ẩn đi (nếu không còn quest)
+
+
+===========================================
+6. LUỒNG XỬ LÝ KEYWORD FALLBACK
+===========================================
+
+Ngoài AI intent detection, hệ thống còn có keyword fallback:
+
+NPC.cs → HandleChatbotIntegration():
+   - Kiểm tra từ khóa đơn giản trong text
+   - "need" + "anything/help" → OnPlayerAskForQuest()
+   - "quest" / "task" → OnPlayerInteract()
+   - "finished/completed/done" → OnPlayerInteract()
+
+Điều này đảm bảo hệ thống vẫn hoạt động ngay cả khi:
+   - ChatBot server không chạy
+   - Intent detection sai
+   - Player dùng câu ngắn gọn
+
+
+===========================================
+7. CẤU HÌNH NPC SYSTEM PROMPT
+===========================================
+
+Để NPC phản hồi đúng về quest, cập nhật system_prompt trong ChatBox.py:
+
+VÍ DỤ CHO NPC SNOW:
+```python
+system_prompt = (
+    "You are Snow, a gentle young girl in the countryside. "
+    "You love picking wildflowers and need help gathering them. "
+    "When player asks if you need help, you happily tell them about "
+    "collecting 10 wildflowers in the meadow. "
+    "You are kind, soft-spoken, and warm-hearted. "
+    "Always reply as Snow, briefly and naturally.\n"
+    "Never include code blocks, JSON, or technical details."
+)
+```
+
+Tùy chỉnh system_prompt cho từng NPC để phù hợp tính cách!
+
+
+===========================================
+8. TROUBLESHOOTING
+===========================================
+
+LỖI: Intent không được detect đúng
+✅ GIẢI PHÁP:
+   - Thêm ví dụ câu vào INTENT_EXAMPLES trong ChatBox.py
+   - Giảm INTENT_THRESHOLD (hiện tại 0.55)
+   - Kiểm tra LM Studio đang chạy
+
+
+LỖI: Action không được thực thi
+✅ GIẢI PHÁP:
+   - Kiểm tra ChatbotClient GameObject có trong scene
+   - Kiểm tra NPC có NPCQuestGiver component
+   - Xem Console logs để trace flow
+
+
+LỖI: ChatBox.py không response
+✅ GIẢI PHÁP:
+   - Kiểm tra server chạy: python ChatBox.py
+   - Kiểm tra port 5000 không bị chiếm
+   - Test API bằng Postman:
+     POST http://127.0.0.1:5000/chat
+     Body: {"text": "hello", "session_id": "test"}
+
+
+LỖI: Quest không được accept
+✅ GIẢI PHÁP:
+   - Kiểm tra database.py server (port 5002)
+   - Kiểm tra database có quest data
+   - Kiểm tra NPC ID khớp với npc_quests table
+
+
+LỖI: TTS audio không phát
+✅ GIẢI PHÁP:
+   - Kiểm tra edge-tts đã cài: pip install edge-tts
+   - Kiểm tra folder tmp/ được tạo
+   - Kiểm tra audio_url có trong response
+
+
+===========================================
+9. MỞ RỘNG HỆ THỐNG
+===========================================
+
+THÊM INTENT MỚI:
+   1. Thêm vào INTENT_EXAMPLES trong ChatBox.py
+   2. Thêm keyword check trong NPC.cs
+   3. Thêm action mapping trong ChatBox.py
+   4. Thêm handler trong ChatbotClient.cs
+   5. Thêm xử lý trong NPC.cs
+
+
+THÊM QUEST TYPE MỚI:
+   1. Thêm objective_type trong database
+   2. Cập nhật QuestProgressTracker.cs
+   3. Thêm intent example nếu cần
+
+
+THÊM NPC MỚI VỚI QUEST:
+   1. Tạo NPC GameObject
+   2. Add NPC.cs và NPCQuestGiver.cs
+   3. Set NPC ID trong Inspector
+   4. Insert data vào database (npcs, npc_quests)
+   5. Tùy chỉnh system_prompt trong ChatBox.py
+
+
+===========================================
+10. CÁC FILE LIÊN QUAN
+===========================================
+
+PYTHON (Backend):
+   ├─ Assets/ChatBox.py (Chatbot + Intent Detection)
+   └─ Assets/Web_Item/python_sever/database.py (Quest API)
+
+UNITY (Frontend):
+   ├─ Assets/Scripts/ChatbotClient.cs (NEW - Chatbot API client)
+   ├─ Assets/Scripts/NPC.cs (UPDATED - Thêm HandleChatbotAction)
+   ├─ Assets/Scripts/NPCQuestGiver.cs (Quest interaction)
+   ├─ Assets/Scripts/Database/QuestManager.cs (Quest management)
+   ├─ Assets/Scripts/Ui/QuestPanel.cs (Quest UI)
+   └─ Assets/Scripts/QuestProgressTracker.cs (Progress tracking)
+
+
+===========================================
+KẾT LUẬN
+===========================================
+
+Hệ thống chatbot đã được tích hợp hoàn toàn với quest system:
+
+✅ NPC hiểu ngôn ngữ tự nhiên về quest
+✅ Tự động giao quest khi player hỏi
+✅ Hiển thị quest status theo yêu cầu
+✅ Hoàn thành và nhận thưởng thông qua dialogue
+✅ Có keyword fallback khi AI không chắc chắn
+
+Player có thể tương tác tự nhiên với NPC mà không cần nhớ câu lệnh!

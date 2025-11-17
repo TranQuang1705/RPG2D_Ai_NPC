@@ -213,6 +213,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   knockBackTime: 0.2
+  knockBackSound: {fileID: 0}
 --- !u!114 &6910067332500644290
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -249,7 +250,7 @@ AudioSource:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1606797619815570155}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 4
   OutputAudioMixerGroup: {fileID: 0}
   m_audioClip: {fileID: 8300000, guid: 8be73f46054876b4387f4b9096f366a7, type: 3}

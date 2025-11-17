@@ -1,0 +1,260 @@
+===========================================
+QUEST SYSTEM SETUP GUIDE
+===========================================
+
+This guide explains how to set up and use the Quest System for your 2D RPG game.
+
+===========================================
+1. DATABASE SETUP
+===========================================
+
+The database schema has been provided and includes these tables:
+- quests: Main quest information
+- quest_objectives: Quest tasks/objectives
+- player_quests: Player's quest status
+- player_quest_progress: Player's progress on objectives
+- npc_quests: Which NPCs give which quests
+
+Make sure to run the SQL script to create these tables in your GameRPG2d database.
+
+===========================================
+2. FLASK SERVER SETUP
+===========================================
+
+The Flask server (Assets/Web_Item/python_sever/database.py) has been updated with quest API endpoints:
+
+API Endpoints:
+- GET /quests - Get all quests
+- GET /quests/<quest_id> - Get specific quest
+- GET /quest_objectives - Get all objectives (or filter by quest_id)
+- GET /player_quests?player_id=<id> - Get player's quests
+- GET /quest_progress?player_id=<id> - Get player's quest progress
+- GET /npc_quests - Get NPC quest assignments
+- POST /player_quests/accept - Accept a quest
+- POST /quest_progress/update - Update quest progress
+- POST /player_quests/complete - Complete quest and give rewards
+
+To start the server:
+1. Open terminal/command prompt
+2. Navigate to: Assets/Web_Item/python_sever/
+3. Run: python database.py
+4. Server will start on http://127.0.0.1:5002
+
+===========================================
+3. UNITY SETUP
+===========================================
+
+A. Create GameObjects in Scene:
+   1. Create empty GameObject named "QuestManager"
+      - Add Component: QuestManager.cs
+   
+   2. Create empty GameObject named "QuestProgressTracker"
+      - Add Component: QuestProgressTracker.cs
+
+B. Setup Quest UI:
+   1. In Canvas, create UI structure matching Picture_For_AI/TaskManager.png:
+      
+      Canvas
+      └── QuestPanel (Image with Button component)
+          ├── QuestIcon (Image)
+          ├── QuestCountText (TextMeshProUGUI)
+          └── QuestDetailPanel (Panel - hidden by default)
+              ├── QuestList (ScrollView)
+              │   └── Content (for quest items)
+              │       └── QuestItemPrefab (Prefab with QuestName, Level, Type)
+              ├── DetailPanel
+              │   ├── QuestNameText (TextMeshProUGUI)
+              │   ├── TaskLevelText (TextMeshProUGUI)
+              │   ├── DetailText (TextMeshProUGUI)
+              │   ├── TaskListContainer (Vertical Layout Group)
+              │   │   └── TaskItemPrefab (Prefab with TextMeshProUGUI)
+              │   ├── RewardText (TextMeshProUGUI)
+              │   ├── MarkImage (Image for quest status icon)
+              │   └── CloseButton (Button)
+
+   2. Assign components in Inspector:
+      - QuestPanel.cs: Assign all UI references
+      - QuestDetailPanel.cs: Assign all UI references
+
+C. Setup NPCs with Quests:
+   1. Select NPC GameObject
+   2. Add Component: NPCQuestGiver.cs
+   3. Configure in Inspector:
+      - NPC Id: Database NPC ID (must match npc_quests table)
+      - Quest Available Indicator: Will auto-create or assign manually
+      - Quest Complete Indicator: Will auto-create or assign manually
+      - Can Give Random Quests: Enable if NPC can give random quests
+      - Available Quest Pool: List of quest IDs for random assignment
+
+===========================================
+4. HOW THE SYSTEM WORKS
+===========================================
+
+A. QUEST FLOW:
+
+   1. NPC HAS QUEST:
+      - NPCQuestGiver checks database for available quests
+      - Shows yellow exclamation mark (!) if quest available
+      - Shows green exclamation mark (!) if quest can be turned in
+
+   2. PLAYER ACCEPTS QUEST:
+      Case 1 - NPC with predefined quest:
+         - Player approaches NPC with exclamation mark
+         - Player says "quest" or "task" in dialogue
+         - Quest is automatically accepted
+      
+      Case 2 - Player asks for quest:
+         - Player approaches NPC without exclamation mark
+         - Player says "Do you need anything?" or "need help"
+         - System randomly assigns quest from available pool
+         - Quest is accepted
+
+   3. QUEST PROGRESS:
+      - Player performs actions (collect items, kill enemies, etc.)
+      - QuestProgressTracker automatically updates progress
+      - QuestPanel shows active quest count
+      - Click QuestPanel to view QuestDetail with full info
+
+   4. QUEST COMPLETION:
+      - When all objectives are completed, NPC shows green (!)
+      - Player talks to NPC
+      - Quest is completed, rewards are given
+      - Progress is reset
+
+B. QUEST UI BEHAVIOR:
+
+   - QuestPanel is HIDDEN when player has no active quests
+   - QuestPanel APPEARS when player accepts a quest
+   - Click QuestPanel to open QuestDetail
+   - QuestDetail shows:
+     * List of active quests (click to select)
+     * Quest name and level requirement
+     * Quest description
+     * Task list with progress (e.g., [5/10] Collect flowers)
+     * Rewards (gold, exp, items)
+     * Status mark (in progress / completed)
+
+===========================================
+5. INTEGRATION WITH EXISTING SYSTEMS
+===========================================
+
+A. Item Collection:
+   When player picks up an item, call:
+   ```csharp
+   QuestProgressTracker.Instance.OnItemCollected(itemId, quantity);
+   ```
+
+B. Enemy Kills:
+   When player kills an enemy, call:
+   ```csharp
+   QuestProgressTracker.Instance.OnEnemyKilled("Forest Slime");
+   ```
+
+C. NPC Dialogue:
+   The NPC.cs has been updated to automatically detect quest keywords:
+   - "need" + "anything" / "help" → Triggers quest assignment
+   - "quest" / "task" → Accepts or turns in quest
+
+D. Database Integration:
+   - DatabaseItemManager: Already integrated for item rewards
+   - DatabasePlayerManager: Updates player gold/exp on quest completion
+
+===========================================
+6. CREATING NEW QUESTS
+===========================================
+
+To create a new quest:
+
+1. Add quest to database:
+   ```sql
+   INSERT INTO quests (quest_name, description, quest_type, min_level, 
+                      reward_gold, reward_exp, reward_item_id, difficulty)
+   VALUES ('Quest Name', 'Description', 'side', 1, 50, 100, NULL, 'easy');
+   ```
+
+2. Add objectives:
+   ```sql
+   INSERT INTO quest_objectives (quest_id, objective_type, target_id, 
+                                 target_name, quantity, description)
+   VALUES (1, 'collect', 2, 'Wildflower', 10, 'Collect 10 Wildflowers');
+   ```
+
+3. Assign to NPC:
+   ```sql
+   INSERT INTO npc_quests (npc_id, quest_id)
+   VALUES (1, 1);
+   ```
+
+4. System will automatically load on start
+
+===========================================
+7. TESTING THE SYSTEM
+===========================================
+
+1. Start Flask server (python database.py)
+2. Start Unity game
+3. Check Console for:
+   - "✅ QuestManager: Loaded X quests"
+   - "🎯 QuestProgressTracker initialized"
+4. Approach NPC with quest
+5. Look for exclamation mark indicator
+6. Start dialogue and say quest-related keywords
+7. Check QuestPanel appears
+8. Perform quest objectives
+9. Return to NPC to complete quest
+
+===========================================
+8. TROUBLESHOOTING
+===========================================
+
+Q: QuestPanel doesn't appear
+A: Check if QuestManager loaded quests successfully in Console
+
+Q: NPC has no exclamation mark
+A: Verify npc_id in NPCQuestGiver matches database npc_quests table
+
+Q: Quest progress not updating
+A: Make sure QuestProgressTracker is in scene and calling On* methods
+
+Q: Database connection failed
+A: Check Flask server is running and MySQL database exists
+
+Q: UI not showing correctly
+A: Verify all UI references are assigned in Inspector for QuestPanel and QuestDetailPanel
+
+===========================================
+9. FILES CREATED/MODIFIED
+===========================================
+
+NEW FILES:
+- Assets/Scripts/Database/DatabaseQuest.cs - Quest data models
+- Assets/Scripts/Database/QuestManager.cs - Quest management system
+- Assets/Scripts/Ui/QuestPanel.cs - Main quest UI panel
+- Assets/Scripts/Ui/QuestDetailPanel.cs - Detailed quest view
+- Assets/Scripts/NPCQuestGiver.cs - NPC quest interaction
+- Assets/Scripts/QuestProgressTracker.cs - Quest progress tracking
+
+MODIFIED FILES:
+- Assets/Scripts/NPC.cs - Added quest trigger detection
+- Assets/Web_Item/python_sever/database.py - Added quest API endpoints
+
+REFERENCE:
+- Assets/Picture_For_AI/TaskManager.png - UI reference image
+
+===========================================
+10. CUSTOMIZATION
+===========================================
+
+You can customize:
+- Quest indicator colors/sprites in NPCQuestGiver
+- UI appearance in Unity Inspector
+- Quest types by adding new objective_type values
+- Reward types by extending CompleteQuest logic
+- Random quest pool per NPC
+
+===========================================
+END OF GUIDE
+===========================================
+
+For questions or issues, check the Debug.Log messages in Unity Console.
+All systems are designed to work together automatically once properly set up.

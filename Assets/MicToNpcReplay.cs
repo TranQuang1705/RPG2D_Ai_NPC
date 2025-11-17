@@ -1,10 +1,12 @@
 using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class MicNpcBridge : MonoBehaviour
 {
     [Header("Target NPC")] 
     public NpcChatSpeaker npcSpeaker;
+    public NPC npcComponent; // Reference to NPC component for quest context
 
     [Header("Mic reference (FreeSpeechToTextToggle)")]
     public FreeSpeechToTextToggle mic; // gán từ Inspector
@@ -13,11 +15,15 @@ public class MicNpcBridge : MonoBehaviour
     public int minChars = 3;
     public bool waitUntilNpcFinished = true;   // true để xếp hàng hợp lý
     public float sendCooldown = 0.3f;
+    
+    [Header("Display NPC Reply")]
+    public bool displayNpcReply = true; // Hiển thị reply của NPC lên mic output
 
     private float _lastSend = -999f;
     private readonly Queue<string> _queue = new Queue<string>();
     private string _lastSent;
     private const int MaxQueue = 50;
+    private string _lastNpcReply = "";
 
     void OnEnable()
     {
@@ -26,6 +32,16 @@ public class MicNpcBridge : MonoBehaviour
         {
             npcSpeaker.OnSpeakStart += OnNpcStart;
             npcSpeaker.OnSpeakEnd   += OnNpcEnd;
+            
+            // Auto-detect NPC component if not assigned
+            if (npcComponent == null)
+            {
+                npcComponent = npcSpeaker.GetComponent<NPC>();
+                if (npcComponent != null)
+                {
+                    Debug.Log($"✅ MicNpcBridge: Auto-detected NPC component on {npcSpeaker.name}");
+                }
+            }
         }
     }
 
@@ -59,17 +75,73 @@ public class MicNpcBridge : MonoBehaviour
         _lastSent = t;
     }
 
+    private Coroutine _syncCoroutine;
+    
     private void OnNpcStart()
     {
         // TẮT MIC khi NPC bắt đầu nói để không thu tiếng TTS
         if (mic) mic.StopListening();
+        
+        // Reset last reply để update lại text mới
+        _lastNpcReply = "";
+        
+        // Stop coroutine cũ nếu đang chạy
+        if (_syncCoroutine != null)
+        {
+            StopCoroutine(_syncCoroutine);
+            _syncCoroutine = null;
+        }
+        
+        // Hiển thị reply của NPC lên mic output
+        if (displayNpcReply && mic && npcSpeaker && npcSpeaker.subtitleTMP)
+        {
+            _syncCoroutine = StartCoroutine(SyncNpcReplyToMic());
+        }
     }
 
     private void OnNpcEnd()
     {
+        // Stop sync coroutine
+        if (_syncCoroutine != null)
+        {
+            StopCoroutine(_syncCoroutine);
+            _syncCoroutine = null;
+        }
+        
         // NPC nói xong -> bật mic lại và xả hàng đợi
         if (mic) mic.StartListening();
         TryFlushQueue();
+    }
+    
+    private IEnumerator SyncNpcReplyToMic()
+    {
+        Debug.Log($"🔄 MicNpcBridge: Starting SyncNpcReplyToMic coroutine");
+        
+        // Đợi một chút để NPC reply được set vào subtitleTMP
+        yield return new WaitForSeconds(0.1f);
+        
+        int updateCount = 0;
+        while (npcSpeaker && npcSpeaker.IsSpeaking)
+        {
+            if (npcSpeaker.subtitleTMP != null)
+            {
+                string npcText = npcSpeaker.subtitleTMP.text;
+                
+                // Update nếu text khác với trước đó hoặc là lần đầu tiên
+                if (!string.IsNullOrEmpty(npcText) && npcText != _lastNpcReply)
+                {
+                    _lastNpcReply = npcText;
+                    if (mic) mic.UpdateDisplayText(npcText);
+                    updateCount++;
+                    Debug.Log($"📝 MicNpcBridge: Updated display text (update #{updateCount}): {npcText.Substring(0, System.Math.Min(50, npcText.Length))}...");
+                }
+            }
+            
+            yield return new WaitForSeconds(0.1f);
+        }
+        
+        Debug.Log($"✅ MicNpcBridge: SyncNpcReplyToMic finished. Total updates: {updateCount}");
+        _syncCoroutine = null;
     }
 
     void Update() => TryFlushQueue();
@@ -91,6 +163,18 @@ public class MicNpcBridge : MonoBehaviour
         if (t.Length < minChars) return;
 
         _lastSend = Time.unscaledTime;
-        npcSpeaker.SpeakFromText(t);
+        
+        // ✅ Use NPC.Say() to include quest context instead of direct SpeakFromText()
+        if (npcComponent != null)
+        {
+            Debug.Log($"📤 MicNpcBridge: Sending to NPC.Say(): \"{t}\"");
+            npcComponent.Say(t);
+        }
+        else
+        {
+            // Fallback to direct call if NPC component not assigned
+            Debug.LogWarning($"⚠️ MicNpcBridge: npcComponent not assigned, using fallback SpeakFromText()");
+            npcSpeaker.SpeakFromText(t);
+        }
     }
 }

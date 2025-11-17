@@ -21,11 +21,11 @@ public class NpcChatSpeaker : MonoBehaviour
     private int latestResponseId = 0;
     private Coroutine currentAudioCo;
 
-    // NEW: session id ổn định cho NPC này
     [SerializeField] private string sessionId; 
 
-    // NEW: liên kết với NavActionHandler
     private NavActionHandler navHandler;
+    
+    private NPC npcComponent;
 
     void Awake()
     {
@@ -34,16 +34,17 @@ public class NpcChatSpeaker : MonoBehaviour
             sessionId = SystemInfo.deviceUniqueIdentifier + "_" + gameObject.name;
         }
 
-        // Tự tìm NavActionHandler trong scene
         navHandler = FindObjectOfType<NavActionHandler>();
+        
+        npcComponent = GetComponent<NPC>();
     }
 
     void Reset() { npcAudio = GetComponent<AudioSource>(); }
 
-    public void SpeakFromText(string userText)
+    public void SpeakFromText(string userText, string questContext = null, string npcContext = null)
     {
         if (string.IsNullOrWhiteSpace(userText)) return;
-        StartCoroutine(CoAskServer(userText));
+        StartCoroutine(CoAskServer(userText, questContext, npcContext));
     }
 
     public void StopSpeaking()
@@ -52,10 +53,24 @@ public class NpcChatSpeaker : MonoBehaviour
         OnSpeakEnd?.Invoke();
     }
 
-    private IEnumerator CoAskServer(string userText)
+    private IEnumerator CoAskServer(string userText, string questContext = null, string npcContext = null)
     {
-        string payload = "{\"text\":\"" + EscapeJson(userText) + "\",\"session_id\":\"" + EscapeJson(sessionId) + "\"}";
-
+        string payload = "{\"text\":\"" + EscapeJson(userText) + 
+                         "\",\"session_id\":\"" + EscapeJson(sessionId) + "\"";
+        
+        if (!string.IsNullOrEmpty(questContext))
+        {
+            payload += ",\"quest_context\":\"" + EscapeJson(questContext) + "\"";
+            Debug.Log($"📜 NpcChatSpeaker: Sending quest_context ({questContext.Length} chars)");
+        }
+        
+        if (!string.IsNullOrEmpty(npcContext))
+        {
+            payload += ",\"npc_context\":\"" + EscapeJson(npcContext) + "\"";
+        }
+        
+        payload += "}";
+        
         using (UnityWebRequest req = new UnityWebRequest(chatUrl, "POST"))
         {
             byte[] bodyRaw = System.Text.Encoding.UTF8.GetBytes(payload);
@@ -92,21 +107,50 @@ public class NpcChatSpeaker : MonoBehaviour
             if (!string.IsNullOrEmpty(br.action))
             {
                 Debug.Log($"🧭 Server action received: {br.action}");
-                if (navHandler == null) navHandler = FindObjectOfType<NavActionHandler>();
-                if (navHandler != null)
+                
+                // Phân loại action: NPC-specific vs Global
+                bool isNpcAction = IsNpcSpecificAction(br.action);
+                
+                if (isNpcAction && npcComponent != null)
                 {
-                    // Gọi trực tiếp vào NavActionHandler
-                    navHandler.HandleServerAction(new ServerResponse
+                    // Actions dành cho NPC cụ thể (GATHER_FLOWER, ASK_FOR_QUEST, etc.)
+                    Debug.Log($"🎮 Calling NPC.HandleChatbotAction() for action: {br.action}");
+                    var parameters = new System.Collections.Generic.Dictionary<string, object>();
+                    
+                    // Convert ResponseParams to dictionary if available
+                    if (br.@params != null)
                     {
-                        action = br.action,
-                        intent = br.intent,
-                        reply = br.reply,
-                        @params = br.@params
-                    });
+                        if (!string.IsNullOrEmpty(br.@params.target))
+                            parameters["target"] = br.@params.target;
+                        if (!string.IsNullOrEmpty(br.@params.target_label))
+                            parameters["target_label"] = br.@params.target_label;
+                        if (!string.IsNullOrEmpty(br.@params.location))
+                            parameters["location"] = br.@params.location;
+                        if (!string.IsNullOrEmpty(br.@params.item))
+                            parameters["item"] = br.@params.item;
+                    }
+                    
+                    npcComponent.HandleChatbotAction(br.action, parameters);
                 }
                 else
                 {
-                    Debug.LogWarning("⚠️ NavActionHandler not found in scene!");
+                    // Global actions (NAVIGATE, START_COMBAT, OPEN_SHOP) → NavActionHandler
+                    if (navHandler == null) navHandler = FindObjectOfType<NavActionHandler>();
+                    if (navHandler != null)
+                    {
+                        Debug.Log($"🧭 Calling NavActionHandler for global action: {br.action}");
+                        navHandler.HandleServerAction(new ServerResponse
+                        {
+                            action = br.action,
+                            intent = br.intent,
+                            reply = br.reply,
+                            @params = br.@params
+                        });
+                    }
+                    else
+                    {
+                        Debug.LogWarning("⚠️ NavActionHandler not found for global action!");
+                    }
                 }
             }
 
@@ -204,6 +248,33 @@ public class NpcChatSpeaker : MonoBehaviour
     {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"")
                 .Replace("\n", "\\n").Replace("\r", "\\r");
+    }
+    
+    /// <summary>
+    /// Phân loại action: NPC-specific hay global
+    /// </summary>
+    private bool IsNpcSpecificAction(string action)
+    {
+        switch (action)
+        {
+            // NPC-specific actions
+            case "GATHER_FLOWER":
+            case "ASK_FOR_QUEST":
+            case "QUEST_DIALOGUE":
+            case "ACCEPT_QUEST_CONFIRM":
+            case "COMPLETE_QUEST":
+            case "SHOW_QUEST_STATUS":
+            case "ANIM":
+                return true;
+            
+            // Global actions (handled by NavActionHandler)
+            case "NAVIGATE":
+            case "START_COMBAT":
+            case "OPEN_SHOP":
+            case "NONE":
+            default:
+                return false;
+        }
     }
 
     // 🔹 Model phản hồi mở rộng đầy đủ

@@ -71,7 +71,9 @@
     <Compile Include="Assets\Scripts\SceneChange.cs" />
     <Compile Include="Assets\Scripts\Database\DatabasePlayer.cs" />
     <Compile Include="Assets\Scripts\PickUpSpawner.cs" />
+    <Compile Include="Assets\PlayerLevelUI.cs" />
     <Compile Include="Assets\Scripts\Player\ActiveWeapon.cs" />
+    <Compile Include="Assets\Scripts\Ui\QuestDetailPanel.cs" />
     <Compile Include="Assets\Scripts\TimeUI.cs" />
     <Compile Include="Assets\Scripts\Sever\ItemFetcher.cs" />
     <Compile Include="Assets\Scripts\Enemies\EnemyPathfinding.cs" />
@@ -97,14 +99,18 @@
     <Compile Include="Assets\Scripts\PrefabCreator.cs" />
     <Compile Include="Assets\Scripts\Management\UiFade.cs" />
     <Compile Include="Assets\Scripts\FlowerManager.cs" />
+    <Compile Include="Assets\Scripts\Database\QuestManager.cs" />
     <Compile Include="Assets\Scripts\Management\CameraController.cs" />
+    <Compile Include="Assets\Scripts\TreeAppleHarvest.cs" />
     <Compile Include="Assets\Scripts\Misc\KnockBack.cs" />
     <Compile Include="Assets\Scripts\Player\ProjectTile.cs" />
     <Compile Include="Assets\Scripts\Ui\iWeapon.cs" />
     <Compile Include="Assets\Scripts\Management\SceneEntrance.cs" />
     <Compile Include="Assets\Scripts\Ui\Bow.cs" />
+    <Compile Include="Assets\Scripts\UIManager.cs" />
     <Compile Include="Assets\Scripts\Random Idle.cs" />
     <Compile Include="Assets\Scripts\ItemDetailPanel.cs" />
+    <Compile Include="Assets\Scripts\ItemMagnet.cs" />
     <Compile Include="Assets\Scripts\FlowerMarking.cs" />
     <Compile Include="Assets\Scripts\Sever\GlobalItemManager.cs" />
     <Compile Include="Assets\Scripts\UIInventoryItem.cs" />
@@ -119,6 +125,7 @@
     <Compile Include="Assets\Scripts\InventoryItem.cs" />
     <Compile Include="Assets\Scripts\TimeBasedRoutineTester.cs" />
     <Compile Include="Assets\Scripts\Player\SlashAnim.cs" />
+    <Compile Include="Assets\Scripts\ChatbotClient.cs" />
     <Compile Include="Assets\Samples\OpenAI Unity\0.2.2\Whisper\SaveWav.cs" />
     <Compile Include="Assets\Scripts\InventorySlotManager.cs" />
     <Compile Include="Assets\Scripts\Player\Stamina.cs" />
@@ -133,7 +140,9 @@
     <Compile Include="Assets\Scripts\Indestructible.cs" />
     <Compile Include="Assets\Scripts\Misc\Screen Shake.cs" />
     <Compile Include="Assets\Scripts\DatabaseItemManager.cs" />
+    <Compile Include="Assets\Scripts\Ui\QuestPanel.cs" />
     <Compile Include="Assets\NpcChatSpeaker.cs" />
+    <Compile Include="Assets\HealthUIDebug.cs" />
     <Compile Include="Assets\Scripts\Player\Sword.cs" />
     <Compile Include="Assets\MicToNpcReplay.cs" />
     <Compile Include="Assets\GameManager2.cs" />
@@ -141,6 +150,8 @@
     <Compile Include="Assets\POIRegistry.cs" />
     <Compile Include="Assets\Scripts\CreditSequenceController.cs" />
     <Compile Include="Assets\Scripts\Misc\Transparent Detection.cs" />
+    <Compile Include="Assets\Scripts\Database\DatabaseQuest.cs" />
+    <Compile Include="Assets\Scripts\QuestProgressTracker.cs" />
     <Compile Include="Assets\Scripts\Management\AnimationEventHandler.cs" />
     <Compile Include="Assets\Scripts\SlotView.cs" />
     <Compile Include="Assets\Scripts\Enemies\EnemyAI.cs" />
@@ -162,6 +173,8 @@
     <Compile Include="Assets\Scripts\ColorController.cs" />
     <Compile Include="Assets\Scripts\Grape.cs" />
     <Compile Include="Assets\Samples\OpenAI Unity\0.2.2\Whisper\Whisper.cs" />
+    <Compile Include="Assets\Scripts\NPCQuestGiver.cs" />
+    <Compile Include="Assets\HeartHealthUI.cs" />
     <Compile Include="Assets\Scripts\Player\DamageSource.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -157,5 +157,7 @@ MonoBehaviour:
   playerTag: Player
   destroyWhenPicked: 1
   autoRegisterMapping: 1
+  autoUpdateSprite: 0
+  spriteScale: 1
   pickupEffect: {fileID: 0}
   pickupEffectDuration: 2

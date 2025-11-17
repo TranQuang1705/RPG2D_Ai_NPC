@@ -110,6 +110,18 @@ public class NPCRoutineAI : MonoBehaviour
             mapGenerator = FindObjectOfType<MapGenerator>();
 
         animator = GetComponent<Animator>();
+        
+        // Đảm bảo sử dụng TimeManager nếu có
+        if (TimeManager.Instance != null)
+        {
+            useRealTimeManager = true;
+            Debug.Log($"✅ {gameObject.name}: TimeManager found, enabled useRealTimeManager");
+        }
+        else
+        {
+            Debug.LogWarning($"⚠️ {gameObject.name}: No TimeManager found, using internal time");
+        }
+        
         InitializeFlowerHunter();
     }
 
@@ -201,14 +213,31 @@ public class NPCRoutineAI : MonoBehaviour
 
         while (true)
         {
+            // ⏸️ Skip logic khi đang pause (đang nói chuyện với player)
+            if (isPaused)
+            {
+                yield return new WaitForSeconds(0.5f);
+                continue;
+            }
+            
             // Cập nhật trạng thái hoạt động
             UpdateCurrentActivity();
 
-            // ✅ CHỈ HOẠ TỰ KHI CÓ REQUEST NGƯỜI! 
-            // KHÔNG có request → chỉ đứng yên
-            if (!playerMadeRequest)
+            bool isFlowerTime = IsFlowerHuntingTime();
+            float currentHour = GetCurrentGameTime();
+            
+            // ⏰ LOG THỜI GIAN CHI TIẾT
+            Debug.Log($"⏰ {gameObject.name}: Time check - Current: {currentHour:F2}h | useRealTimeManager: {useRealTimeManager} | TimeManager exists: {TimeManager.Instance != null}");
+            if (TimeManager.Instance != null)
             {
-                Debug.Log($"🔒 {gameObject.name}: No player request — standing idle. Current activity: {currentActivity}");
+                Debug.Log($"⏰ {gameObject.name}: TimeManager.GetCurrentHour() = {TimeManager.Instance.GetCurrentHour():F2}h");
+            }
+            Debug.Log($"⏰ {gameObject.name}: IsFlowerTime: {isFlowerTime} | PlayerRequest: {playerMadeRequest} | Range: {flowerHuntingStartHour}-{flowerHuntingEndHour}h");
+            
+            // ✅ CHỈ HÁI HOA KHI: trong giờ hái hoa HOẶC có request từ người chơi
+            if (!playerMadeRequest && !isFlowerTime)
+            {
+                Debug.Log($"🔒 {gameObject.name}: No player request and not flower time (current: {currentHour:F1}h, range: {flowerHuntingStartHour}-{flowerHuntingEndHour}h) — standing idle");
                 currentState = NPCState.Idle;
                 yield return StartCoroutine(IdleRoutine());
                 
@@ -217,7 +246,8 @@ public class NPCRoutineAI : MonoBehaviour
                 continue; // Restart the loop
             }
 
-            Debug.Log($"🌸 {gameObject.name}: Player found! Player requested OR time is {currentActivity} - going to gather.");
+            string reason = playerMadeRequest ? "Player requested" : $"Flower time ({currentHour:F1}h)";
+            Debug.Log($"🌸 {gameObject.name}: {reason} - going to gather flowers!");
             
             // Proceed with flower gathering logic
             FlowerObject nearestFlower = FindNearestFlowerSimple();
@@ -1225,9 +1255,12 @@ public class NPCRoutineAI : MonoBehaviour
     {
         if (!isPaused) return;
         isPaused = false;
-
-        // Sử dụng time-based routine
-        StartCoroutine(TimeBasedRoutine());
+        
+        Debug.Log($"▶️ {gameObject.name}: Resuming activity - SimpleFlowerHunting will continue checking conditions");
+        
+        // SimpleFlowerHunting vẫn đang chạy, chỉ cần unpause
+        // Coroutine sẽ tự tiếp tục từ vị trí đã pause
+        // KHÔNG start coroutine mới để tránh duplicate
     }
 
 
@@ -1463,8 +1496,14 @@ public class NPCRoutineAI : MonoBehaviour
         playerMadeRequest = true;
         
         // Reset request after completion
-        StartCoroutine(ResetPlayerRequest());
+        if (stopResetCoroutine != null)
+        {
+            StopCoroutine(stopResetCoroutine);
+        }
+        stopResetCoroutine = StartCoroutine(ResetPlayerRequest());
     }
+    
+    private Coroutine stopResetCoroutine;
     
     IEnumerator ResetPlayerRequest()
     {
@@ -1479,5 +1518,19 @@ public class NPCRoutineAI : MonoBehaviour
     public bool HasPlayerRequest()
     {
         return playerMadeRequest;
+    }
+    
+    /// <summary>
+    /// Force reset player request (debug/external use)
+    /// </summary>
+    public void ForceResetPlayerRequest()
+    {
+        Debug.Log($"🔴 {gameObject.name}: Force resetting player request from {playerMadeRequest} to false");
+        playerMadeRequest = false;
+        if (stopResetCoroutine != null)
+        {
+            StopCoroutine(stopResetCoroutine);
+            stopResetCoroutine = null;
+        }
     }
 }

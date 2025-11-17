@@ -90,7 +90,7 @@ public class PickUp : MonoBehaviour
                 break;
 
             case PickUpType.Health:
-                PlayerHealth.Instance.HealhPlayer();
+                PlayerHealth.Instance.HealPlayer();
                 Debug.Log("Health picked up!");
                 break;
 

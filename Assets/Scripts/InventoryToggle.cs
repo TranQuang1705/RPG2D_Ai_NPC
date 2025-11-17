@@ -46,7 +46,22 @@ public class InventoryToggle : MonoBehaviour
         // UI bag
         if (inventoryCanvas) inventoryCanvas.SetActive(isOpen);
 
-        // Khóa/khôi phục chuyển động nhân vật
+        // ✅ Đóng ItemDetailPanel khi đóng Inventory
+        if (!isOpen && ItemDetailPanel.Instance != null)
+        {
+            ItemDetailPanel.Instance.Hide();
+        }
+
+        // ✅ Notify UIManager để disable/enable player controls
+        if (UIManager.Instance != null)
+        {
+            if (isOpen)
+                UIManager.Instance.OnPanelOpened();
+            else
+                UIManager.Instance.OnPanelClosed();
+        }
+
+        // Khóa/khôi phục chuyển động nhân vật (freeze rigidbody để chắc chắn)
         if (playerRb)
         {
             if (isOpen)
@@ -61,7 +76,7 @@ public class InventoryToggle : MonoBehaviour
             }
         }
 
-        // Khóa/khôi phục tấn công bằng cách bật/tắt vũ khí đang cầm
+        // Khóa/khôi phục tấn công bằng cách bật/tắt vũ khí đang cầm (backup, UIManager sẽ handle chính)
         if (activeWeapon)
         {
             if (isOpen)

@@ -26,7 +26,26 @@ INTENT_EXAMPLES = {
     ],
     "combat": ["attack", "fight", "kill the wolf", "start combat", "go fight", "battle"],
     "trade": ["open shop", "show me your wares", "buy items", "sell goods", "trade"],
-    "farewell": ["goodbye", "bye", "see you", "take care", "farewell"]
+    "farewell": ["goodbye", "bye", "see you", "take care", "farewell"],
+    "ask_for_quest": [
+        "do you need help", "do you need anything", "can I help you", 
+        "any task for me", "do you have work for me", "need assistance",
+        "what can I do for you", "any quests", "got any jobs"
+    ],
+    "quest_confirmation": [
+        "yes I will help", "sure I'll help", "okay I accept", "yes let's do it",
+        "I agree", "count me in", "yes", "sure", "okay", "alright"
+    ],
+    "quest_status": [
+        "what is my quest", "show my quests", "what tasks do I have",
+        "check my quest progress", "quest status", "how is my quest going",
+        "what am I supposed to do"
+    ],
+    "complete_quest": [
+        "I finished the quest", "quest done", "I completed the task",
+        "here are the items", "I have what you need", "task completed",
+        "I'm done with the quest", "turn in quest"
+    ]
 }
 
 INTENT_EMB = {k: EMB_MODEL.encode(v, convert_to_tensor=True) for k, v in INTENT_EXAMPLES.items()}
@@ -190,7 +209,14 @@ def chat():
     data = request.get_json(silent=True) or {}
     user_input = (data.get("text") or "").strip()
     session_id = (data.get("session_id") or "default").strip() or "default"
-    #Lấy dữ liệu JSON từ yêu cầu POST, trích xuất văn bản người dùng và session_id
+    quest_context = (data.get("quest_context") or "").strip()
+    npc_context = (data.get("npc_context") or "").strip()
+    #Lấy dữ liệu JSON từ yêu cầu POST, trích xuất văn bản người dùng, session_id và contexts
+    
+    print(f"[DEBUG] Input: '{user_input}' | Has quest_context: {bool(quest_context)}")
+    if quest_context:
+        print(f"[DEBUG] Quest context (first 80 chars): {quest_context[:80]}...")
+    
     if not user_input:
         return jsonify({"reply": "I didn’t hear anything...", "audio_url": None, "intent": "other"}), 200
     #Nếu văn bản người dùng rỗng, trả về phản hồi mặc định
@@ -199,7 +225,25 @@ def chat():
     intent = detect_intent(user_input)
     #Phát hiện intent từ văn bản người dùng
     low_text = user_input.lower()
-    if any(k in low_text for k in ["village", "town", "where"]):
+    
+    # PRIORITY 1: Check for quest confirmation if quest_context exists
+    # This must be checked FIRST to prevent other keywords from overriding
+    confirmation_keywords = ["yes", "sure", "okay", "ok", "i'll help", "i will help", "accept", "agree", "let's do it", "let me help", "count me in", "sounds good", "alright"]
+    if quest_context and any(k in low_text for k in confirmation_keywords):
+        intent = "quest_confirmation"
+        print(f"[QUEST] Detected quest confirmation with keyword in: {low_text}")
+    # PRIORITY 2: Check for quest completion
+    elif any(k in low_text for k in ["finished", "completed", "complete", "done", "turn in", "here are", "i have", "i'm done", "task done", "quest done"]):
+        intent = "complete_quest"
+        print(f"[QUEST] Detected complete_quest with keyword in: {low_text}")
+    # PRIORITY 3: Check for asking about quests
+    elif any(k in low_text for k in ["need help", "need anything", "can i help", "any task", "any quest", "any job"]):
+        intent = "ask_for_quest"
+    # PRIORITY 4: Check for quest status
+    elif any(k in low_text for k in ["my quest", "quest status", "quest progress", "what task", "check quest"]):
+        intent = "quest_status"
+    # PRIORITY 5: Other specific intents
+    elif any(k in low_text for k in ["village", "town", "where"]):
         intent = "ask_direction"
     elif any(k in low_text for k in ["attack", "fight", "wolf", "combat"]):
         intent = "combat"
@@ -209,12 +253,23 @@ def chat():
         intent = "farewell"
     elif any(k in low_text for k in ["flower", "pick", "gather", "bloom", "petal"]):
         intent = "gather_flower"
-    #Cải thiện phát hiện intent dựa trên từ khóa cụ thể trong văn bản người dùng
+    #Cải thiện phát hiện intent dựa trên từ khóa cụ thể - với ưu tiên quest confirmation
     history.append({"role": "user", "content": f"[intent={intent}] {user_input}"})
     #Lưu lịch sử hội thoại với định dạng đặc biệt để bao gồm intent
-    messages = [{"role": "system", "content": system_prompt}] + list(history)
+    
+    # Build contextual system prompt
+    contextual_prompt = system_prompt
+    if quest_context:
+        contextual_prompt += f"\n\n[QUEST INFO]\n{quest_context}\n"
+        contextual_prompt += "When player asks about quests or help, naturally explain this quest in your own words. "
+        contextual_prompt += "Make it sound like you really need help, not like you're reading from a quest log. "
+        contextual_prompt += "After explaining, ask if they would be willing to help you."
+    if npc_context:
+        contextual_prompt += f"\n\n[YOUR CURRENT STATUS]\n{npc_context}"
+    
+    messages = [{"role": "system", "content": contextual_prompt}] + list(history)
     payload = {"model": MODEL_NAME, "messages": messages}
-    # Tạo payload cho yêu cầu API Ollama với lịch sử hội thoại
+    # Tạo payload cho yêu cầu API Ollama với lịch sử hội thoại và context
     try:
         print(f"[DEBUG] Sending to LM Studio: {OLLAMA_URL}")
         print(f"[DEBUG] Payload: {payload}")
@@ -267,6 +322,20 @@ def chat():
     elif intent == "gather_flower":
         action = "GATHER_FLOWER"
         params = {"target": "flower_field", "target_label": "Wildflowers"}
+    elif intent == "quest_confirmation":
+        # Player confirmed to accept the quest
+        action = "ACCEPT_QUEST_CONFIRM"
+        params = {"trigger": "player_confirmed"}
+    elif intent == "ask_for_quest":
+        # Player asking if NPC needs help - explain quest but don't accept yet
+        action = "QUEST_DIALOGUE"
+        params = {"trigger": "player_ask_help"}
+    elif intent == "quest_status":
+        action = "SHOW_QUEST_STATUS"
+        params = {"open_quest_panel": True}
+    elif intent == "complete_quest":
+        action = "COMPLETE_QUEST"
+        params = {"trigger": "turn_in"}
     else:
         action = "NONE"
     #Cầu nối intent đã phát hiện với các hành động trò chơi cụ thể và tham số liên quan

@@ -61,7 +61,6 @@ public class SpeechRecognitionTest : MonoBehaviour
         recording = true;
         outputText.text = "Listening...";
 
-        Debug.Log("🎙️ SpeechRecognition: Bắt đầu ghi âm.");
         OnRecordingStarted?.Invoke();
     }
 
@@ -73,7 +72,6 @@ public class SpeechRecognitionTest : MonoBehaviour
         Microphone.End(micDevice);
         recording = false;
 
-        Debug.Log("🛑 SpeechRecognition: Dừng ghi âm.");
         OnRecordingStopped?.Invoke();
 
         if (position <= 0)
@@ -99,7 +97,6 @@ public class SpeechRecognitionTest : MonoBehaviour
 
     public void SendRecording(byte[] wav)
     {
-        Debug.Log("🚀 SpeechRecognition: Gửi file WAV lên HuggingFace...");
         HuggingFaceAPI.AutomaticSpeechRecognition(
             wav,
             response =>

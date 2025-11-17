@@ -12,6 +12,8 @@ public class PlayerController : Singleton<PlayerController>
     [SerializeField] private Transform weaponCollider;
     [SerializeField] private AudioClip footstepSound;
     [SerializeField] private AudioClip dashSound;
+    [SerializeField] private float footstepInterval = 0.4f; // thời gian giữa 2 bước chân
+    private float footstepTimer = 0f;
 
     private PlayerControls playerControls;
     private Vector2 movement;
@@ -82,30 +84,42 @@ public class PlayerController : Singleton<PlayerController>
     private void Move()
     {
         if (knockBack.GettingKnockBack || PlayerHealth.Instance.isDead)
-        {
             return;
-        }
-        if (movement != Vector2.zero && !audioSource.isPlaying)
+
+        // Nếu có chuyển động thực sự
+        if (movement.sqrMagnitude > 0.01f)
         {
-            PlayFootstepSound();
+            footstepTimer -= Time.fixedDeltaTime;
+            if (footstepTimer <= 0f)
+            {
+                PlayFootstepSound();
+                footstepTimer = footstepInterval; // reset timer
+            }
+
+            rb.MovePosition(rb.position + movement * (moveSpeed * Time.fixedDeltaTime));
         }
-        rb.MovePosition(rb.position + movement * (moveSpeed * Time.fixedDeltaTime));
+        else
+        {
+            // Không di chuyển → reset bộ đếm để phát lại khi di chuyển tiếp
+            footstepTimer = 0f;
+            audioSource.Stop();
+        }
     }
+
     private void PlayFootstepSound()
     {
         if (footstepSound != null)
         {
-            audioSource.clip = footstepSound;
-            audioSource.loop = false; 
-            audioSource.Play();
+            audioSource.PlayOneShot(footstepSound);
         }
     }
+
     private void AdjustPlayerFacingDirection()
     {
         Vector3 mousePos = Input.mousePosition;
         Vector3 playerScreenPoint = Camera.main.WorldToScreenPoint(transform.position);
 
-        if(mousePos.x < playerScreenPoint.x)
+        if (mousePos.x < playerScreenPoint.x)
         {
             mySpriteRenderer.flipX = true;
             facingLeft = true;
@@ -118,7 +132,7 @@ public class PlayerController : Singleton<PlayerController>
     }
     private void Dash()
     {
-        if(!isDashing && Stamina.Instance.CurrentStamina > 0)
+        if (!isDashing && Stamina.Instance.CurrentStamina > 0)
         {
             Stamina.Instance.UseStamina();
             isDashing = true;
@@ -151,7 +165,7 @@ public class PlayerController : Singleton<PlayerController>
     {
         if (dashSound != null)
         {
-            audioSource.PlayOneShot(dashSound); 
+            audioSource.PlayOneShot(dashSound);
         }
     }
 }

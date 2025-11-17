@@ -17,10 +17,15 @@ public class NPC : MonoBehaviour
     [SerializeField] private bool useRoutineAI = true;
 
     private NPCRoutineAI routineAI;
+    private NPCQuestGiver questGiver;
     private bool isPlayerNearby = false;
     private bool isDialogueActive = false;
     private bool isPlayerSpeaking = false;
     private bool isNpcSpeaking = false;
+    
+    // Quest dialogue state - remembers quest being offered
+    private int pendingQuestId = -1;
+    private string pendingQuestContext = null;
 
     private void Start()
     {
@@ -37,6 +42,13 @@ public class NPC : MonoBehaviour
         if (useRoutineAI)
         {
             SetupRoutineAI();
+        }
+
+        // Setup quest giver
+        questGiver = GetComponent<NPCQuestGiver>();
+        if (questGiver == null)
+        {
+            Debug.Log($"⚠️ {name}: No NPCQuestGiver component found. Add one if this NPC gives quests.");
         }
 
         // 🟢 Kiểm tra Collider2D
@@ -122,36 +134,228 @@ public class NPC : MonoBehaviour
     {
         Debug.Log($"🗣️ {name}: Say() được gọi với input: \"{userText}\"");
 
-        if (!string.IsNullOrWhiteSpace(userText) && chatSpeaker != null)
+        if (!string.IsNullOrWhiteSpace(userText))
         {
             isPlayerSpeaking = false;
             isNpcSpeaking = true;
-            Debug.Log($"🔇 {name}: Người chơi nói xong, NPC bắt đầu trả lời.");
+            Debug.Log($"🔇 {name}: Người chơi nói xong, NPC bắt đầu xử lý.");
 
-            // Thiết lập callback khi NPC nói xong
-            chatSpeaker.OnSpeakEnd = OnNpcFinishedSpeaking;
+            // Prepare context for chatbot
+            string questContext = GetQuestContextForChatbot(userText);
+            string npcContext = GetCurrentActivityInfo();
+            
+            Debug.Log($"🔍 {name}: Quest context status - HasContext: {!string.IsNullOrEmpty(questContext)}, PendingQuestId: {pendingQuestId}");
+            if (!string.IsNullOrEmpty(questContext))
+            {
+                Debug.Log($"📤 {name}: Sending quest context to chatbot");
+            }
 
-            chatSpeaker.SpeakFromText(userText);
-            HandleChatbotIntegration(userText);
+            // Send message to chatbot if available
+            if (ChatbotClient.Instance != null)
+            {
+                ChatbotClient.Instance.SendMessage(userText, this, questContext, npcContext);
+            }
+            // Fallback to direct processing
+            else if (chatSpeaker != null)
+            {
+                // Thiết lập callback khi NPC nói xong
+                chatSpeaker.OnSpeakEnd = OnNpcFinishedSpeaking;
+                chatSpeaker.SpeakFromText(userText, questContext, npcContext);
+                HandleChatbotIntegration(userText);
+            }
+            else
+            {
+                Debug.LogWarning($"⚠️ {name}: No chatbot or chatSpeaker available!");
+                HandleChatbotIntegration(userText);
+                OnNpcFinishedSpeaking();
+            }
         }
         else
         {
-            Debug.LogWarning($"⚠️ {name}: Say() bị gọi nhưng chatSpeaker hoặc userText rỗng!");
+            Debug.LogWarning($"⚠️ {name}: Say() bị gọi nhưng userText rỗng!");
+        }
+    }
+
+    string GetQuestContextForChatbot(string userText)
+    {
+        if (questGiver == null)
+            return null;
+
+        // If we already have a pending quest context, return it
+        // This allows player to say "yes" without repeating quest keywords
+        if (!string.IsNullOrEmpty(pendingQuestContext))
+        {
+            Debug.Log($"📜 {name}: Using pending quest context for quest ID {pendingQuestId}");
+            return pendingQuestContext;
+        }
+
+        string lowerText = userText.ToLower();
+
+        // Check if player is asking about quests
+        if (lowerText.Contains("need") || lowerText.Contains("help") || 
+            lowerText.Contains("quest") || lowerText.Contains("task") ||
+            lowerText.Contains("job") || lowerText.Contains("anything"))
+        {
+            var availableQuests = QuestManager.Instance?.GetQuestsForNPC(questGiver.GetNPCId());
+            
+            if (availableQuests != null && availableQuests.Count > 0)
+            {
+                var quest = availableQuests[0];
+                var objectives = QuestManager.Instance?.GetQuestObjectives(quest.quest_id);
+                
+                // Build quest context string
+                string context = $"QUEST_AVAILABLE: {quest.quest_name}\n";
+                context += $"Description: {quest.description}\n";
+                context += $"Difficulty: {quest.difficulty}\n";
+                
+                if (objectives != null && objectives.Count > 0)
+                {
+                    context += "Objectives:\n";
+                    foreach (var obj in objectives)
+                    {
+                        context += $"- {obj.objective_type}: {obj.description} ({obj.quantity}x {obj.target_name})\n";
+                    }
+                }
+                
+                context += $"Rewards: {quest.reward_gold} gold";
+                if (quest.reward_exp > 0)
+                    context += $", {quest.reward_exp} exp";
+                if (quest.reward_item_id > 0)
+                    context += $", item reward";
+                
+                // Store pending quest state
+                pendingQuestId = quest.quest_id;
+                pendingQuestContext = context;
+                
+                Debug.Log($"📜 {name}: Quest context prepared and stored for quest ID {pendingQuestId}:\n{context}");
+                return context;
+            }
+            // Check for completable quests
+            else if (questGiver.HasCompletableQuests())
+            {
+                return "QUEST_COMPLETABLE: Player has completed quest objectives and can turn in the quest.";
+            }
+        }
+
+        return null;
+    }
+    
+    void ClearPendingQuest()
+    {
+        Debug.Log($"🗑️ {name}: Clearing pending quest state");
+        pendingQuestId = -1;
+        pendingQuestContext = null;
+    }
+
+    // Called by ChatbotClient when NPC needs to speak a response
+    public void SpeakResponse(string responseText)
+    {
+        if (chatSpeaker != null)
+        {
+            chatSpeaker.OnSpeakEnd = OnNpcFinishedSpeaking;
+            chatSpeaker.SpeakFromText(responseText);
+        }
+        else
+        {
+            Debug.Log($"💬 {name}: {responseText}");
+            OnNpcFinishedSpeaking();
         }
     }
 
     void HandleChatbotIntegration(string userText)
     {
-        if (routineAI == null) return;
+        if (string.IsNullOrEmpty(userText)) return;
 
-        if (userText.ToLower().Contains("where") && userText.ToLower().Contains("flower"))
+        string lowerText = userText.ToLower();
+
+        // ❌ REMOVED FALLBACK LOGIC - Now handled by chatbot with QUEST_DIALOGUE and ACCEPT_QUEST_CONFIRM
+        // The chatbot will:
+        // 1. Detect "need help" → send quest_context → chatbot explains quest → action: QUEST_DIALOGUE
+        // 2. Detect "yes/sure" with quest_context → action: ACCEPT_QUEST_CONFIRM → accept quest
+        // This gives natural dialogue before accepting quest!
+
+        // Flower direction
+        if (lowerText.Contains("where") && lowerText.Contains("flower"))
         {
             Debug.Log($"🌼 {name}: Tôi biết một nơi có nhiều hoa đẹp!");
         }
 
-        string activityInfo = routineAI.GetCurrentActivityName();
-        float gameTime = routineAI.GetCurrentGameTime();
-        Debug.Log($"🕒 {name}: Thông tin gửi chatbot → {activityInfo} (giờ {gameTime:F1})");
+        // Send activity info to chatbot
+        if (routineAI != null)
+        {
+            string activityInfo = routineAI.GetCurrentActivityName();
+            float gameTime = routineAI.GetCurrentGameTime();
+            Debug.Log($"🕒 {name}: Thông tin gửi chatbot → {activityInfo} (giờ {gameTime:F1})");
+        }
+    }
+
+    // Handler for chatbot action responses
+    public void HandleChatbotAction(string action, System.Collections.Generic.Dictionary<string, object> parameters)
+    {
+        Debug.Log($"🎮 {name}: Received action '{action}' from chatbot");
+        Debug.Log($"🔍 {name}: Action comparison - received: '{action}', length: {action.Length}");
+        Debug.Log($"🔍 {name}: routineAI null? {routineAI == null}, useRoutineAI: {useRoutineAI}");
+
+        switch (action)
+        {
+            case "QUEST_DIALOGUE":
+                break;
+
+            case "ACCEPT_QUEST_CONFIRM":
+                if (questGiver != null)
+                {
+                    questGiver.OnPlayerAskForQuest();
+                    ClearPendingQuest(); 
+                }
+                break;
+
+            case "ASK_FOR_QUEST":
+                if (questGiver != null)
+                {
+                    questGiver.OnPlayerAskForQuest();
+                }
+                break;
+
+            case "COMPLETE_QUEST":
+                if (questGiver != null)
+                {
+                    questGiver.OnPlayerInteract();
+                }
+                break;
+
+            case "SHOW_QUEST_STATUS":
+                var questPanel = GameObject.FindObjectOfType<QuestPanel>();
+                if (questPanel != null)
+                {
+                    questPanel.OpenQuestDetail();
+                }
+                break;
+
+            case "GATHER_FLOWER":
+                if (routineAI == null)
+                {
+                    Debug.Log($"⚠️ {name}: routineAI is null, trying to get component...");
+                    routineAI = GetComponent<NPCRoutineAI>();
+                }
+                
+                if (routineAI != null)
+                {
+                    Debug.Log($"🌸 {name}: Starting flower gathering activity from chatbot request");
+                    routineAI.PlayerMadeGatheringRequest();
+                    Debug.Log($"🌸 {name}: Called PlayerMadeGatheringRequest()");
+                }
+                else
+                {
+                    Debug.LogWarning($"⚠️ {name}: Cannot start flower gathering - no NPCRoutineAI component");
+                }
+                break;
+
+            default:
+                Debug.Log($"ℹ️ {name}: No special action matched for '{action}'");
+                break;
+        }
+        
+        Debug.Log($"🏁 {name}: HandleChatbotAction finished");
     }
 
     // Callback khi NPC nói xong
@@ -296,6 +500,9 @@ public class NPC : MonoBehaviour
         isDialogueActive = false;
         isPlayerSpeaking = false;
         isNpcSpeaking = false;
+        
+        // Clear pending quest when dialogue ends
+        ClearPendingQuest();
 
         // Dừng recording nếu đang ghi âm
         if (speechRecognition != null)
@@ -303,8 +510,20 @@ public class NPC : MonoBehaviour
             speechRecognition.StopRecording();
         }
 
+        // Chỉ resume activity nếu NPC có player request hoặc đang trong routine bình thường
         if (routineAI != null && useRoutineAI)
+        {
+            bool hasRequest = routineAI.HasPlayerRequest();
+            Debug.Log($"🔍 {name}: Player left dialogue. PlayerRequest={hasRequest}");
+            
+            // Nếu có player request hái hoa, NPC sẽ tiếp tục
+            // Nếu không, NPC sẽ quay về routine bình thường theo thời gian
+            if (hasRequest)
+            {
+                Debug.Log($"🌸 {name}: Resuming flower gathering from player request");
+            }
             routineAI.ResumeCurrentActivity();
+        }
     }
 
 
