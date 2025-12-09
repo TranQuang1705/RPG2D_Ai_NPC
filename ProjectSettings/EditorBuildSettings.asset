@@ -9,6 +9,9 @@ EditorBuildSettings:
     path: Assets/Scenes/MainMenu.unity
     guid: d93b6351bc946dd458050d41f7e6d7d3
   - enabled: 1
+    path: Assets/Scenes/MainGameScene.unity
+    guid: c287e62e4f5493746b6d703011925117
+  - enabled: 1
     path: Assets/Scenes/Scene1.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
   - enabled: 1
@@ -23,7 +26,4 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/InnerHouse.unity
     guid: 72800217192138b418f679b3a106fb62
-  - enabled: 1
-    path: Assets/Scenes/TestAutoGenertorMap.unity
-    guid: c287e62e4f5493746b6d703011925117
   m_configObjects: {}

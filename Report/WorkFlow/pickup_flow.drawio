@@ -1,0 +1,73 @@
+<mxfile host="app.diagrams.net" modified="2025-11-30T00:00:00.000Z" agent="Mozilla/5.0" version="24.0.0">
+  <diagram id="pickupFlow" name="Pickup Flowchart">
+    <mxGraphModel dx="1536" dy="824" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" background="#ffffff">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="start" value="Start (Enemy Defeated)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#00CF88;strokeColor=#009966;" vertex="1" parent="1">
+          <mxGeometry x="80" y="150" width="160" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dropCheck" value="Drop Enabled?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="300" y="140" width="160" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="selectCategory" value="Select Category (Health / EXP / Currency)" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="520" y="150" width="250" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="spawnItem" value="Spawn Item Prefab" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFD966;strokeColor=#C57A00;" vertex="1" parent="1">
+          <mxGeometry x="820" y="150" width="180" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="itemIdle" value="Item on Ground" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="150" width="150" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="playerNear" value="Player Near?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1270" y="140" width="160" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="moveToPlayer" value="Move Toward Player" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0288D1;" vertex="1" parent="1">
+          <mxGeometry x="1500" y="150" width="170" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="collision" value="Collision?" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1730" y="140" width="160" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="applyEffect" value="Apply Effect (HP / EXP / Currency)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="1960" y="150" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="updateUI" value="Update UI" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="2220" y="150" width="160" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="destroyItem" value="Destroy Item" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="2440" y="150" width="150" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="end" value="End" style="ellipse;html=1;whiteSpace=wrap;fillColor=#FF9999;strokeColor=#CC0000;" vertex="1" parent="1">
+          <mxGeometry x="2650" y="150" width="120" height="60" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" edge="1" source="start" target="dropCheck" style="endArrow=block;"/>
+        <mxCell id="e2" edge="1" source="dropCheck" target="selectCategory" style="endArrow=block;" value="Yes"/>
+        <mxCell id="e3" edge="1" source="selectCategory" target="spawnItem" style="endArrow=block;"/>
+        <mxCell id="e4" edge="1" source="spawnItem" target="itemIdle" style="endArrow=block;"/>
+        <mxCell id="e5" edge="1" source="itemIdle" target="playerNear" style="endArrow=block;"/>
+        <mxCell id="e6" edge="1" source="playerNear" target="moveToPlayer" style="endArrow=block;" value="Yes"/>
+        <mxCell id="e7" edge="1" source="moveToPlayer" target="collision" style="endArrow=block;"/>
+        <mxCell id="e8" edge="1" source="collision" target="applyEffect" value="Yes" style="endArrow=block;"/>
+        <mxCell id="e9" edge="1" source="applyEffect" target="updateUI" style="endArrow=block;"/>
+        <mxCell id="e10" edge="1" source="updateUI" target="destroyItem" style="endArrow=block;"/>
+        <mxCell id="e11" edge="1" source="destroyItem" target="end" style="endArrow=block;"/>
+
+        <mxCell id="e12" edge="1" source="playerNear" target="itemIdle" value="No" style="endArrow=block;"/>
+        <mxCell id="e13" edge="1" source="collision" target="moveToPlayer" value="No" style="endArrow=block;"/>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

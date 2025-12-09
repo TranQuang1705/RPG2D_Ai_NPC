@@ -42,8 +42,6 @@ public class NavActionHandler : MonoBehaviour
             return;
         }
 
-        Debug.Log($"📩 Received → action={resp.action}, intent={resp.intent}, reply={resp.reply}");
-
         if (string.IsNullOrEmpty(resp.action))
         {
             Debug.LogWarning("⚠️ Missing resp.action!");
@@ -58,7 +56,6 @@ public class NavActionHandler : MonoBehaviour
                     Debug.LogWarning("⚠️ Missing params for NAVIGATE.");
                     return;
                 }
-                Debug.Log($"📍 NAVIGATE → target={resp.@params.target}, label={resp.@params.target_label}");
 
                 if (mapGenerator != null)
                 {
@@ -83,7 +80,6 @@ public class NavActionHandler : MonoBehaviour
                 break;
                 
             case "GATHER_FLOWER":
-                Debug.Log($"🌸 GATHER_FLOWER → location={resp.@params?.location}, item={resp.@params?.item}");
                 StartCoroutine(HandleFlowerGathering(resp));
                 break;
 
@@ -112,7 +108,6 @@ public class NavActionHandler : MonoBehaviour
         GameObject camp = GameObject.Find("Camp");
         if (camp == null)
         {
-            Debug.LogWarning("❌ Không tìm thấy Camp!");
             yield break;
         }
 
@@ -120,7 +115,6 @@ public class NavActionHandler : MonoBehaviour
         var grid = mapGenerator.grid;
         if (grid == null)
         {
-            Debug.LogWarning("❌ GridManager chưa được khởi tạo!");
             yield break;
         }
 
@@ -137,7 +131,6 @@ public class NavActionHandler : MonoBehaviour
             yield break;
         }
 
-        Debug.Log($"✨ Spawn đom đóm dẫn đường đến {target}, {path.Count} ô.");
 
         // Tạo hiệu ứng đom đóm chạy dọc theo path
         foreach (var point in path)
@@ -193,7 +186,6 @@ public class NavActionHandler : MonoBehaviour
             // Trigger flower gathering in the NPC's routine
             routineAI.PlayerMadeGatheringRequest();
             ShowHint($"🌸 {chosenNPC.name} has heard your request and will go gather flowers!");
-            Debug.Log($"🌸 Triggered flower gathering for {chosenNPC.name}");
         }
         else
         {
@@ -216,9 +208,8 @@ public class NavActionHandler : MonoBehaviour
         {
             if (Vector3.Distance(player.position, campPos) < 2f)
             {
-                Debug.Log("🏕️ Player reached village → clearing all fireflies...");
                 ClearAllFireflies();
-                yield break; // dừng coroutine
+                yield break; 
             }
             yield return new WaitForSeconds(0.5f);
         }

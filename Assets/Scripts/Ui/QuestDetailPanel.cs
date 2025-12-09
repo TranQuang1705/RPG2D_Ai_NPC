@@ -30,17 +30,36 @@ public class QuestDetailPanel : MonoBehaviour
     [SerializeField] private Image rewardItemImage;
 
     [Header("Currency & EXP Groups")]
+    [Tooltip("AURUM = 10000 OBAL")]
+    [SerializeField] private GameObject aurumGroup;
+    [SerializeField] private TextMeshProUGUI aurumCountText;
+
+    [Tooltip("FERON = 1000 OBAL")]
+    [SerializeField] private GameObject feronGroup;
+    [SerializeField] private TextMeshProUGUI feronCountText;
+
+    [Tooltip("ASTRYL = 1000 OBAL (alternative to FERON)")]
+    [SerializeField] private GameObject astrylGroup;
+    [SerializeField] private TextMeshProUGUI astrylCountText;
+
+    [Tooltip("SYLV = 100 OBAL")]
     [SerializeField] private GameObject sylvGroup;
     [SerializeField] private TextMeshProUGUI sylvCountText;
 
-    [SerializeField] private GameObject goldGroup;
-    [SerializeField] private TextMeshProUGUI goldCountText;
+    [Tooltip("VAROS = 10 OBAL")]
+    [SerializeField] private GameObject varosGroup;
+    [SerializeField] private TextMeshProUGUI varosCountText;
 
+    [Tooltip("OBAL = 1 (base unit)")]
     [SerializeField] private GameObject obalGroup;
     [SerializeField] private TextMeshProUGUI obalCountText;
 
     [SerializeField] private GameObject expGroup;
     [SerializeField] private TextMeshProUGUI expCountText;
+
+    // Legacy support - goldGroup maps to aurumGroup
+    private GameObject goldGroup => aurumGroup;
+    private TextMeshProUGUI goldCountText => aurumCountText;
 
     private List<GameObject> questItemInstances = new List<GameObject>();
     private List<GameObject> taskItemInstances = new List<GameObject>();
@@ -230,34 +249,93 @@ public class QuestDetailPanel : MonoBehaviour
         DisplayExpReward(questData.quest.reward_exp);
     }
 
-    void DisplayCurrencyRewards(int totalGold)
+    void DisplayCurrencyRewards(int totalObal)
     {
-        if (totalGold <= 0)
+        if (totalObal <= 0)
         {
             HideCurrencyGroups();
             return;
         }
 
-        int gold = totalGold / 10000;
-        int silver = (totalGold % 10000) / 100;
-        int copper = totalGold % 100;
+        // Currency conversion constants (new system: OBAL base)
+        const int OBAL_PER_AURUM = 10000;
+        const int OBAL_PER_FERON = 1000;
+        const int OBAL_PER_ASTRYL = 1000;
+        const int OBAL_PER_SYLV = 100;
+        const int OBAL_PER_VAROS = 10;
 
-        if (gold > 0 && goldGroup != null)
+        // Calculate ALL denominations
+        int aurum = totalObal / OBAL_PER_AURUM;
+        int remainingAfterAurum = totalObal % OBAL_PER_AURUM;
+        
+        int feron = remainingAfterAurum / OBAL_PER_FERON;
+        int remainingAfterFeron = remainingAfterAurum % OBAL_PER_FERON;
+        
+        int sylv = remainingAfterFeron / OBAL_PER_SYLV;
+        int remainingAfterSylv = remainingAfterFeron % OBAL_PER_SYLV;
+        
+        int varos = remainingAfterSylv / OBAL_PER_VAROS;
+        int obal = remainingAfterSylv % OBAL_PER_VAROS;
+
+        // Display AURUM (highest denomination)
+        if (aurum > 0 && aurumGroup != null)
         {
-            goldGroup.SetActive(true);
-            goldCountText.text = gold.ToString();
+            aurumGroup.SetActive(true);
+            aurumCountText.text = aurum.ToString();
+        }
+        else if (aurumGroup != null)
+        {
+            aurumGroup.SetActive(false);
         }
 
-        if (silver > 0 && sylvGroup != null)
+        // Display FERON (prefer FERON over ASTRYL for quest rewards)
+        if (feron > 0 && feronGroup != null)
+        {
+            feronGroup.SetActive(true);
+            feronCountText.text = feron.ToString();
+        }
+        else if (feronGroup != null)
+        {
+            feronGroup.SetActive(false);
+        }
+
+        // Hide ASTRYL in quest rewards (FERON is preferred)
+        if (astrylGroup != null)
+        {
+            astrylGroup.SetActive(false);
+        }
+
+        // Display SYLV
+        if (sylv > 0 && sylvGroup != null)
         {
             sylvGroup.SetActive(true);
-            sylvCountText.text = silver.ToString();
+            sylvCountText.text = sylv.ToString();
+        }
+        else if (sylvGroup != null)
+        {
+            sylvGroup.SetActive(false);
         }
 
-        if (copper > 0 && obalGroup != null)
+        // Display VAROS
+        if (varos > 0 && varosGroup != null)
+        {
+            varosGroup.SetActive(true);
+            varosCountText.text = varos.ToString();
+        }
+        else if (varosGroup != null)
+        {
+            varosGroup.SetActive(false);
+        }
+
+        // Display OBAL (lowest denomination)
+        if (obal > 0 && obalGroup != null)
         {
             obalGroup.SetActive(true);
-            obalCountText.text = copper.ToString();
+            obalCountText.text = obal.ToString();
+        }
+        else if (obalGroup != null)
+        {
+            obalGroup.SetActive(false);
         }
     }
 
@@ -276,8 +354,11 @@ public class QuestDetailPanel : MonoBehaviour
 
     void HideAllRewardGroups()
     {
+        if (aurumGroup != null) aurumGroup.SetActive(false);
+        if (feronGroup != null) feronGroup.SetActive(false);
+        if (astrylGroup != null) astrylGroup.SetActive(false);
         if (sylvGroup != null) sylvGroup.SetActive(false);
-        if (goldGroup != null) goldGroup.SetActive(false);
+        if (varosGroup != null) varosGroup.SetActive(false);
         if (obalGroup != null) obalGroup.SetActive(false);
         if (expGroup != null) expGroup.SetActive(false);
 
@@ -287,8 +368,11 @@ public class QuestDetailPanel : MonoBehaviour
 
     void HideCurrencyGroups()
     {
+        if (aurumGroup != null) aurumGroup.SetActive(false);
+        if (feronGroup != null) feronGroup.SetActive(false);
+        if (astrylGroup != null) astrylGroup.SetActive(false);
         if (sylvGroup != null) sylvGroup.SetActive(false);
-        if (goldGroup != null) goldGroup.SetActive(false);
+        if (varosGroup != null) varosGroup.SetActive(false);
         if (obalGroup != null) obalGroup.SetActive(false);
     }
 
@@ -318,7 +402,7 @@ public class QuestDetailPanel : MonoBehaviour
 
     void ClosePanel()
     {
-        // ✅ Gọi QuestPanel để close (QuestPanel sẽ notify UIManager)
+        
         var questPanel = FindObjectOfType<QuestPanel>();
         if (questPanel != null)
         {

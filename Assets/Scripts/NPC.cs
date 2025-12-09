@@ -10,7 +10,7 @@ public class NPC : MonoBehaviour
     [SerializeField] private NpcChatSpeaker chatSpeaker; // gắn component này nếu muốn NPC nói
 
     [Header("Voice Recognition")]
-    [SerializeField] private SpeechRecognitionTest speechRecognition;
+    // [SerializeField] private SpeechRecognitionTest speechRecognition;
     [SerializeField] private int recordSeconds = 5;
 
     [Header("Routine Settings")]
@@ -86,12 +86,12 @@ public class NPC : MonoBehaviour
         }
 
         // Thiết lập speech recognition nếu có
-        if (speechRecognition == null)
-        {
-            speechRecognition = FindObjectOfType<SpeechRecognitionTest>();
-            if (speechRecognition != null)
-                Debug.Log($"🎤 {name}: Tìm thấy SpeechRecognitionTest.");
-        }
+        // if (speechRecognition == null)
+        // {
+        //     speechRecognition = FindObjectOfType<SpeechRecognitionTest>();
+        //     if (speechRecognition != null)
+        //         Debug.Log($"🎤 {name}: Tìm thấy SpeechRecognitionTest.");
+        // }
     }
 
     Transform FindVillageCenter()
@@ -350,6 +350,22 @@ public class NPC : MonoBehaviour
                 }
                 break;
 
+            case "OPEN_SHOP":
+            case "TRADE":
+            case "BUY":
+            case "VIEW_SHOP":
+                var trader = GetComponent<NPCTrader>();
+                if (trader != null)
+                {
+                    Debug.Log($"🏪 {name}: Opening shop from chatbot request");
+                    trader.OnPlayerRequestTrade();
+                }
+                else
+                {
+                    Debug.LogWarning($"⚠️ {name}: No NPCTrader component - cannot open shop");
+                }
+                break;
+
             default:
                 Debug.Log($"ℹ️ {name}: No special action matched for '{action}'");
                 break;
@@ -366,30 +382,30 @@ public class NPC : MonoBehaviour
         Debug.Log($"🎤 {name}: NPC nói xong, mở mic cho người chơi tiếp tục.");
 
         // Mở lại mic sau 0.5 giây để người chơi tiếp tục nói
-        Invoke(nameof(StartListeningForPlayer), 0.5f);
+        // Invoke(nameof(StartListeningForPlayer), 0.5f);
     }
 
 
     // Bắt đầu lắng nghe người chơi
-    void StartListeningForPlayer()
-    {
-        if (isDialogueActive && !isPlayerSpeaking && !isNpcSpeaking)
-        {
-            if (speechRecognition != null)
-            {
-                Debug.Log($"🎙️ {name}: Bắt đầu lắng nghe người chơi...");
-                isPlayerSpeaking = true;
+    // void StartListeningForPlayer()
+    // {
+    //     if (isDialogueActive && !isPlayerSpeaking && !isNpcSpeaking)
+    //     {
+    //         if (speechRecognition != null)
+    //         {
+    //             Debug.Log($"🎙️ {name}: Bắt đầu lắng nghe người chơi...");
+    //             isPlayerSpeaking = true;
 
-                // Thiết lập callback khi nhận được voice input
-                speechRecognition.OnSpeechResult = OnPlayerSpeechReceived;
-                speechRecognition.StartRecording();
-            }
-            else
-            {
-                Debug.LogWarning($"⚠️ {name}: SpeechRecognition không có sẵn!");
-            }
-        }
-    }
+    //             // Thiết lập callback khi nhận được voice input
+    //             speechRecognition.OnSpeechResult = OnPlayerSpeechReceived;
+    //             speechRecognition.StartRecording();
+    //         }
+    //         else
+    //         {
+    //             Debug.LogWarning($"⚠️ {name}: SpeechRecognition không có sẵn!");
+    //         }
+    //     }
+    // }
 
     // Xử lý khi nhận được speech từ người chơi
     void OnPlayerSpeechReceived(string recognizedText)
@@ -402,7 +418,7 @@ public class NPC : MonoBehaviour
         else
         {
             Debug.Log($"🔇 {name}: Không nhận được speech, thử lại sau 1 giây.");
-            Invoke(nameof(StartListeningForPlayer), 1f);
+            // Invoke(nameof(StartListeningForPlayer), 1f);
         }
     }
 
@@ -487,7 +503,7 @@ public class NPC : MonoBehaviour
         if (chatSpeaker != null)
         {
             Debug.Log($"🎙️ {name}: Mở mic cho người chơi bắt đầu nói.");
-            StartListeningForPlayer();
+            // StartListeningForPlayer();
         }
     }
 
@@ -505,10 +521,10 @@ public class NPC : MonoBehaviour
         ClearPendingQuest();
 
         // Dừng recording nếu đang ghi âm
-        if (speechRecognition != null)
-        {
-            speechRecognition.StopRecording();
-        }
+        // if (speechRecognition != null)
+        // {
+        //     speechRecognition.StopRecording();
+        // }
 
         // Chỉ resume activity nếu NPC có player request hoặc đang trong routine bình thường
         if (routineAI != null && useRoutineAI)

@@ -152,9 +152,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7008845b0c7200149a094be45a420787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  goldCoin: {fileID: 1030432787938409427, guid: 8edca1cc790d39c42a9abedafd415c60, type: 3}
+  obalCoin: {fileID: 1030432787938409427, guid: e30e04cc8756a404a8d253c1f2e1f05e, type: 3}
+  varosCoin: {fileID: 6144491412551200313, guid: d7548dbbbae5ac441be758f275f8c78d, type: 3}
+  sylvCoin: {fileID: 6144491412551200313, guid: e35c5de663b49b64fab2afcca5362cf0, type: 3}
+  feronCoin: {fileID: 6144491412551200313, guid: 90be57f45b4f5a44fb399d4fc12bfb75, type: 3}
+  astrylCoin: {fileID: 6144491412551200313, guid: 7149454089540c24ca3ad08e0e60d6aa, type: 3}
+  aurumCoin: {fileID: 1030432787938409427, guid: bfd02074f7ef20144b8a10eccdb03883, type: 3}
   heath: {fileID: 1030432787938409427, guid: b7383c4140fc31b428ec4c17461ed340, type: 3}
   stamina: {fileID: 1030432787938409427, guid: afad839e60fd36d43bc0cf751392bd09, type: 3}
+  enableCurrencyDrop: 1
+  minObalValue: 10
+  maxObalValue: 50
+  allowAurumDrop: 0
+  allowFeronDrop: 0
+  useAstrylInsteadOfFeron: 0
+  allowSylvDrop: 0
+  allowVarosDrop: 1
+  allowObalDrop: 1
+  isInWizardBiome: 0
+  wizardBiomeTag: WizardBiome
+  enableHealthDrop: 1
+  enableStaminaDrop: 1
 --- !u!61 &3622818419007646573
 BoxCollider2D:
   m_ObjectHideFlags: 0

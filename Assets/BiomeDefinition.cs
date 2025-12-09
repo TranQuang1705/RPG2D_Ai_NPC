@@ -31,7 +31,54 @@ public class BiomeDefinition : ScriptableObject
 
     [Header("Xác suất phủ decor tile trên nền cỏ")]
     [Range(0, 1)] public float decorChance = 0.08f;
-    // BiomeDefinition.cs
+
+    // ========== ENEMY SPAWN SYSTEM (NEW) ==========
+    [Serializable]
+    public struct EnemySpawnData
+    {
+        [Tooltip("Prefab enemy (ví dụ: Grape, Slime, Wolf)")]
+        public GameObject enemyPrefab;
+        
+        [Tooltip("Trọng số spawn (càng cao càng thường xuất hiện)")]
+        [Range(0f, 1f)]
+        public float spawnWeight;
+        
+        [Tooltip("Số lượng tối thiểu mỗi spawn point")]
+        [Range(1, 20)]
+        public int minCount;
+        
+        [Tooltip("Số lượng tối đa mỗi spawn point")]
+        [Range(1, 20)]
+        public int maxCount;
+    }
+
+    [Header("━━━ ENEMY SPAWN SETTINGS ━━━")]
+    [Tooltip("Danh sách enemy có thể spawn trong biome này")]
+    public EnemySpawnData[] enemySpawns;
+
+    [Header("Spawn Point Configuration")]
+    [Tooltip("Số lượng spawn points trong biome này")]
+    [Range(1, 50)]
+    public int spawnPointCount = 10;
+
+    [Tooltip("Khoảng cách tối thiểu giữa các spawn points (tiles)")]
+    [Range(5, 30)]
+    public int minSpawnPointDistance = 15;
+
+    [Tooltip("Spawn points cách player tối thiểu bao nhiêu (tiles)")]
+    [Range(10, 50)]
+    public int safeZoneRadius = 20;
+
+    [Header("Respawn Configuration")]
+    [Tooltip("Có cho phép respawn không")]
+    public bool enableRespawn = true;
+
+    [Tooltip("Thời gian chờ trước khi respawn (giây)")]
+    [Range(10f, 300f)]
+    public float respawnDelay = 60f;
+
+    [Tooltip("Số lần respawn tối đa (-1 = vô hạn)")]
+    public int maxRespawnCount = -1;
 
 
 

@@ -12,7 +12,7 @@ Library: D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x8
 --linker-options=PdbAltPath="AlexTheWanderer_Data/Plugins/x86_64/lib_burst_generated.pdb"
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\OneMonth_AlexTheWanderer\My project\Temp\Burst
---key-folder=D:/GameMaker/ProjectA/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
+--key-folder=E:/Unity/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
 --decode-folder=D:\OneMonth_AlexTheWanderer\My project\Library\Burst
 --output=D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
@@ -32,7 +32,7 @@ Library: D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x8
 --linker-options=PdbAltPath="AlexTheWanderer_Data/Plugins/x86_64/lib_burst_generated.pdb"
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\OneMonth_AlexTheWanderer\My project\Temp\Burst
---key-folder=D:/GameMaker/ProjectA/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
+--key-folder=E:/Unity/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
 --decode-folder=D:\OneMonth_AlexTheWanderer\My project\Library\Burst
 --output=D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
@@ -50,7 +50,7 @@ Library: D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x8
 --linker-options=PdbAltPath="AlexTheWanderer_Data/Plugins/x86_64/lib_burst_generated.pdb"
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\OneMonth_AlexTheWanderer\My project\Temp\Burst
---key-folder=D:/GameMaker/ProjectA/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
+--key-folder=E:/Unity/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
 --decode-folder=D:\OneMonth_AlexTheWanderer\My project\Library\Burst
 --output=D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/
@@ -102,7 +102,7 @@ Library: D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x8
 --linker-options=PdbAltPath="AlexTheWanderer_Data/Plugins/x86_64/lib_burst_generated.pdb"
 --generate-link-xml=Temp\burst.link.xml
 --temp-folder=D:\OneMonth_AlexTheWanderer\My project\Temp\Burst
---key-folder=D:/GameMaker/ProjectA/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
+--key-folder=E:/Unity/2022.3.42f1/Editor/Data/PlaybackEngines/WindowsStandaloneSupport
 --decode-folder=D:\OneMonth_AlexTheWanderer\My project\Library\Burst
 --output=D:\OneMonth_AlexTheWanderer\My project\Temp\BurstOutput\Data\Plugins\x86_64\lib_burst_generated
 --pdb-search-paths=Temp/ManagedSymbols/

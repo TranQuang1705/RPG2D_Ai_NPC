@@ -205,7 +205,21 @@ public class InventorySlotBag
     public void Clear() { item = null; quantity = 0; }
 
     public bool CanStackWith(ItemSO other)
-        => !IsEmpty && item == other && item.stackable && quantity < item.maxStack;
+    {
+        if (IsEmpty || other == null || !item.stackable || quantity >= item.maxStack)
+            return false;
+        
+        // So sánh bằng reference trước
+        if (item == other)
+            return true;
+        
+        // Nếu cả 2 có databaseItemId > 0, so sánh bằng ID
+        if (item.databaseItemId > 0 && other.databaseItemId > 0)
+            return item.databaseItemId == other.databaseItemId;
+        
+        // So sánh bằng displayName
+        return item.displayName == other.displayName;
+    }
 }
 
 // ============================ WORLD PICKUP ============================

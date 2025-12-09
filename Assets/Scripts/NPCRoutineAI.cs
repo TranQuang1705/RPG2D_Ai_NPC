@@ -9,10 +9,11 @@ public enum NPCActivity
 {
     Sleep,              // Ngủ (23:00 - 6:00)
     MorningRoutine,     // Dọn dẹp, ăn sáng (6:00 - 8:00)
-    FlowerHunting,     // Đi hái hoa (8:00 - 12:00)
+    MarketTrading,     // Bán hàng ở chợ (8:00 - 12:00) - for traders
     LunchBreak,        // Nghỉ trưa ở làng (12:00 - 13:00)
-    ExploreVillage,    // Lang thang gặp gỡ làng (13:00 - 17:00)
-    EveningRoutine,    // Nấu ăn, trò chuyện (17:00 - 20:00)
+    FlowerHunting,      // Đi hái hoa (13:00 - 17:00)
+    ExploreVillage,   // Lang thang gặp gỡ làng (17:00 - 18:00)
+    EveningRoutine,    // Nấu ăn, trò chuyện (18:00 - 20:00)
     SocialTime,        // Gặp gỡ buổi tối (20:00 - 22:00)
     NightRoutine       // Chuẩn bị đi ngủ (22:00 - 23:00)
 }
@@ -85,6 +86,12 @@ public class NPCRoutineAI : MonoBehaviour
     private Coroutine activityCoroutine;
     private Coroutine gatheringCoroutine;
 
+    [Header("Market Trading (for traders)")]
+    public bool isTrader = false; // NPC có vai trò bán hàng không
+    public float marketOpenHour = 8f; // 8:00 AM
+    public float marketCloseHour = 12f; // 12:00 PM
+    public Transform marketStallLocation; // Vị trí sạp hàng
+
     // Pause/resume system
     private bool isPaused = false;
     private NPCActivity pausedActivity;
@@ -92,6 +99,9 @@ public class NPCRoutineAI : MonoBehaviour
 
     // Singleton để quản lý tất cả NPCs
     public static NPCRoutineAI Instance;
+    private Coroutine moveRoutine;
+    private bool physicsLockedForMarket = false;
+
 
 
 
@@ -110,7 +120,7 @@ public class NPCRoutineAI : MonoBehaviour
             mapGenerator = FindObjectOfType<MapGenerator>();
 
         animator = GetComponent<Animator>();
-        
+
         // Đảm bảo sử dụng TimeManager nếu có
         if (TimeManager.Instance != null)
         {
@@ -121,7 +131,7 @@ public class NPCRoutineAI : MonoBehaviour
         {
             Debug.LogWarning($"⚠️ {gameObject.name}: No TimeManager found, using internal time");
         }
-        
+
         InitializeFlowerHunter();
     }
 
@@ -134,55 +144,7 @@ public class NPCRoutineAI : MonoBehaviour
 
     void FixedUpdate()
     {
-        Rigidbody2D rb = GetComponent<Rigidbody2D>();
-        if (rb == null) return;
-
-        if (currentState == NPCState.MovingToTarget && currentTargetPosition != Vector3.zero)
-        {
-            Vector2 direction = ((Vector2)currentTargetPosition - rb.position);
-            float distance = direction.magnitude;
-
-            if (distance > 0.05f)
-            {
-                direction = direction.normalized;
-
-                // 🧱 Check nếu có vật cản ngay phía trước
-                int obstacleMask = LayerMask.GetMask("Obstacle", "Water");
-                RaycastHit2D hit = Physics2D.Raycast(rb.position, direction, 0.3f, obstacleMask);
-                if (hit.collider == null)
-                {
-                    rb.velocity = direction * moveSpeed;
-                }
-                else
-                {
-                    rb.velocity = Vector2.zero;
-                    Debug.Log($"🚧 {name}: Gặp vật cản {hit.collider.name}");
-                }
-
-                // Xoay mặt đúng hướng
-                if (direction.x != 0 && transform.localScale.x != Mathf.Sign(direction.x))
-                {
-                    Vector3 scale = transform.localScale;
-                    scale.x = Mathf.Sign(direction.x) * Mathf.Abs(scale.x);
-                    transform.localScale = scale;
-                }
-
-                if (animator)
-                {
-                    animator.SetBool("Walking", true);
-                    animator.SetBool("Idle", false);
-                }
-            }
-            else
-            {
-                rb.velocity = Vector2.zero;
-                if (animator)
-                {
-                    animator.SetBool("Walking", false);
-                    animator.SetBool("Idle", true);
-                }
-            }
-        }
+        return;
     }
 
 
@@ -219,13 +181,43 @@ public class NPCRoutineAI : MonoBehaviour
                 yield return new WaitForSeconds(0.5f);
                 continue;
             }
-            
-            // Cập nhật trạng thái hoạt động
-            UpdateCurrentActivity();
+
+            // ✅ PRIORITY: Nếu đang MarketTrading, KHÔNG update activity cho đến khi hết giờ
+            if (currentActivity == NPCActivity.MarketTrading)
+            {
+                // Kiểm tra xem còn trong giờ market không
+                NPCTrader trader = GetComponent<NPCTrader>();
+                if (trader != null && trader.IsMarketHours())
+                {
+                    // Vẫn còn giờ market → tiếp tục ở market
+                    yield return new WaitForSeconds(1f);
+                    continue;
+                }
+                else
+                {
+                    // Hết giờ market → cho phép update activity
+                    Debug.Log($"🏪 {gameObject.name}: Market time ended, switching to other activity");
+                    UpdateCurrentActivity();
+                }
+            }
+            else
+            {
+                // Cập nhật trạng thái hoạt động
+                UpdateCurrentActivity();
+            }
+
+            // ✅ Nếu NPC là trader và đang giờ market, chuyển sang MarketTrading
+            if (currentActivity == NPCActivity.MarketTrading)
+            {
+                Debug.Log($"🏪 {gameObject.name}: Switching to MarketTrading activity!");
+                yield return StartCoroutine(MarketTradingRoutine());
+                yield return new WaitForSeconds(1f);
+                continue; // Restart loop after market closes
+            }
 
             bool isFlowerTime = IsFlowerHuntingTime();
             float currentHour = GetCurrentGameTime();
-            
+
             // ⏰ LOG THỜI GIAN CHI TIẾT
             Debug.Log($"⏰ {gameObject.name}: Time check - Current: {currentHour:F2}h | useRealTimeManager: {useRealTimeManager} | TimeManager exists: {TimeManager.Instance != null}");
             if (TimeManager.Instance != null)
@@ -233,14 +225,14 @@ public class NPCRoutineAI : MonoBehaviour
                 Debug.Log($"⏰ {gameObject.name}: TimeManager.GetCurrentHour() = {TimeManager.Instance.GetCurrentHour():F2}h");
             }
             Debug.Log($"⏰ {gameObject.name}: IsFlowerTime: {isFlowerTime} | PlayerRequest: {playerMadeRequest} | Range: {flowerHuntingStartHour}-{flowerHuntingEndHour}h");
-            
+
             // ✅ CHỈ HÁI HOA KHI: trong giờ hái hoa HOẶC có request từ người chơi
             if (!playerMadeRequest && !isFlowerTime)
             {
                 Debug.Log($"🔒 {gameObject.name}: No player request and not flower time (current: {currentHour:F1}h, range: {flowerHuntingStartHour}-{flowerHuntingEndHour}h) — standing idle");
                 currentState = NPCState.Idle;
                 yield return StartCoroutine(IdleRoutine());
-                
+
                 // Check again every few seconds
                 yield return new WaitForSeconds(3f);
                 continue; // Restart the loop
@@ -248,15 +240,21 @@ public class NPCRoutineAI : MonoBehaviour
 
             string reason = playerMadeRequest ? "Player requested" : $"Flower time ({currentHour:F1}h)";
             Debug.Log($"🌸 {gameObject.name}: {reason} - going to gather flowers!");
-            
+
             // Proceed with flower gathering logic
             FlowerObject nearestFlower = FindNearestFlowerSimple();
 
             if (nearestFlower != null)
             {
                 // Di chuyển đến hoa
-                yield return StartCoroutine(MoveToPosition(nearestFlower.position));
-
+                bool reachedFlowerMove = false;
+                moveRoutine = StartCoroutine(MoveToPosition(nearestFlower.position, r => reachedFlowerMove = r));
+                yield return moveRoutine;
+                if (!reachedFlowerMove)
+                {
+                    Debug.LogError($"{name}: FAILED to reach flower!");
+                    continue;
+                }
                 // Kiểm tra khoảng cách
                 float distance = Vector3.Distance(transform.position, nearestFlower.position);
                 if (distance <= flowerDetectionRadius)
@@ -266,7 +264,7 @@ public class NPCRoutineAI : MonoBehaviour
 
                     // Nghỉ ngắn sau khi hái và reset player request if needed
                     yield return new WaitForSeconds(2f);
-                    
+
                     // Complete player request if it was player initiated
                     if (playerMadeRequest)
                     {
@@ -385,8 +383,9 @@ public class NPCRoutineAI : MonoBehaviour
 
                 if (nearestFlower != null)
                 {
-                    yield return StartCoroutine(MoveToPosition(nearestFlower.position));
-
+                    bool reachFlower = false;
+                    moveRoutine = StartCoroutine(MoveToPosition(nearestFlower.position, r => reachFlower = r));
+                    yield return moveRoutine;
                     // Kiểm tra đã đến gần chưa
                     float distance = Vector3.Distance(transform.position, nearestFlower.position);
                     if (distance <= flowerDetectionRadius)
@@ -412,7 +411,10 @@ public class NPCRoutineAI : MonoBehaviour
                     Vector3 randomPoint = villageCenter.position +
                         new Vector3(Random.Range(-wanderRadius, wanderRadius), Random.Range(-wanderRadius, wanderRadius), 0f);
 
-                    yield return StartCoroutine(MoveToPosition(randomPoint));
+                    bool reachedRandom = false;
+                    moveRoutine = StartCoroutine(MoveToPosition(randomPoint, r => reachedRandom = r));
+                    yield return moveRoutine;
+
                 }
             }
             else
@@ -504,14 +506,20 @@ public class NPCRoutineAI : MonoBehaviour
             Debug.Log($"🕒 NPC {name}: Giờ hiện tại {hour:F1}h → Activity={currentActivity}");
         }
 
-        // ✅ Chỉ hái hoa từ 14h - 16h
-        if (hour >= flowerHuntingStartHour && hour < flowerHuntingEndHour)
+        // Priority 1: Market trading for traders (8h-12h)
+        if (isTrader && hour >= marketOpenHour && hour < marketCloseHour)
+        {
+            currentActivity = NPCActivity.MarketTrading;
+        }
+        // Priority 2: Flower hunting (14h-16h)
+        else if (hour >= flowerHuntingStartHour && hour < flowerHuntingEndHour)
         {
             currentActivity = NPCActivity.FlowerHunting;
         }
         else
         {
-            // Ngoài khung 14–16h: NPC đứng im (Idle)
+            // Ngoài khung giờ đặc biệt: NPC đứng im hoặc làm activity khác
+            // Có thể mở rộng thêm các activity khác theo giờ
             currentActivity = NPCActivity.FlowerHunting;
         }
     }
@@ -527,12 +535,16 @@ public class NPCRoutineAI : MonoBehaviour
         if (Vector3.Distance(transform.position, homeLocation.position) > 2f)
         {
             currentState = NPCState.MovingToTarget;
-            yield return StartCoroutine(MoveToPosition(homeLocation.position));
+            bool reachHome = false;
+            moveRoutine = StartCoroutine(MoveToPosition(homeLocation.position, r => reachHome = r));
+            yield return moveRoutine;
+
         }
 
         // Đứng yên/đi ngủ
         transform.rotation = Quaternion.LookRotation(Vector3.forward);
-        if (animator) animator.SetTrigger("Sleep");
+        // ⚠️ Animation disabled
+        // if (animator) animator.SetTrigger("Sleep");
 
         while (currentActivity == NPCActivity.Sleep)
         {
@@ -546,10 +558,14 @@ public class NPCRoutineAI : MonoBehaviour
 
         // Dọn dẹp gần nhà
         Vector3 cleanSpot = homeLocation.position + new Vector3(Random.Range(-2f, 2f), Random.Range(-2f, 2f), 0f);
-        yield return StartCoroutine(MoveToPosition(cleanSpot));
+        bool reachClean = false;
+        moveRoutine = StartCoroutine(MoveToPosition(cleanSpot, r => reachClean = r));
+        yield return moveRoutine;
+
 
         // Đóng giả làm việc nhà
-        if (animator) animator.SetTrigger("Clean");
+        // ⚠️ Animation disabled
+        // if (animator) animator.SetTrigger("Clean");
         yield return new WaitForSeconds(2f);
 
         while (currentActivity == NPCActivity.MorningRoutine)
@@ -601,7 +617,11 @@ public class NPCRoutineAI : MonoBehaviour
                         break;
                     }
 
-                    yield return StartCoroutine(MoveToPosition(nearestFlower.position));
+                    bool reachedFlowerMove2 = false;
+                    moveRoutine = StartCoroutine(MoveToPosition(nearestFlower.position, r => reachedFlowerMove2 = r));
+                    yield return moveRoutine;
+
+
                     moveTimer += Time.deltaTime;
 
                     // Nếu đã đủ gần, break
@@ -677,7 +697,9 @@ public class NPCRoutineAI : MonoBehaviour
                     // Debug.Log($"🎯 Target Explore Point: {explorePoint:F2}");
                     // Debug.Log($"📏 Distance from VillageCenter: {Vector3.Distance(villageCenter.position, explorePoint):F2}");
 
-                    yield return StartCoroutine(MoveToPosition(explorePoint));
+                    bool reachedExplore = false;
+                    moveRoutine = StartCoroutine(MoveToPosition(explorePoint, r => reachedExplore = r));
+                    yield return moveRoutine;
                     yield return new WaitForSeconds(0.5f);
                 }
                 else
@@ -704,11 +726,20 @@ public class NPCRoutineAI : MonoBehaviour
         currentState = NPCState.MovingToTarget;
 
         // Quay về làng để ăn trưa
-        yield return StartCoroutine(MoveToPosition(villageCenter.position));
+        bool reachedLunch = false;
+        moveRoutine = StartCoroutine(MoveToPosition(villageCenter.position, r => reachedLunch = r));
+        yield return moveRoutine;
+
+        if (!reachedLunch)
+        {
+            Debug.LogError($"{name}: Failed to reach lunch spot");
+        }
+
 
         // Đứng yên ăn
         transform.rotation = Quaternion.LookRotation(Vector3.forward);
-        if (animator) animator.SetTrigger("Eat");
+        // ⚠️ Animation disabled
+        // if (animator) animator.SetTrigger("Eat");
         yield return new WaitForSeconds(Random.Range(30f, 60f)); // 30-60 giây ăn trưa
 
         while (currentActivity == NPCActivity.LunchBreak)
@@ -728,7 +759,10 @@ public class NPCRoutineAI : MonoBehaviour
                 new Vector3(Random.Range(-wanderRadius, wanderRadius), Random.Range(-wanderRadius, wanderRadius), 0f);
 
             currentState = NPCState.MovingToTarget;
-            yield return StartCoroutine(MoveToPosition(wanderPoint));
+            bool reachedWander = false;
+            moveRoutine = StartCoroutine(MoveToPosition(wanderPoint, r => reachedWander = r));
+            yield return moveRoutine;
+
 
             // Dừng lại khoảng thời gian ngắn
             currentState = NPCState.Idle;
@@ -744,10 +778,14 @@ public class NPCRoutineAI : MonoBehaviour
         currentState = NPCState.MovingToTarget;
 
         // Quay về nhà/area trung tâm của làng
-        yield return StartCoroutine(MoveToPosition(villageCenter.position));
+        bool reachedEvening = false;
+        moveRoutine = StartCoroutine(MoveToPosition(villageCenter.position, r => reachedEvening = r));
+        yield return moveRoutine;
+
 
         // Nấu ăn/công việc tối
-        if (animator) animator.SetTrigger("Cook");
+        // ⚠️ Animation disabled
+        // if (animator) animator.SetTrigger("Cook");
         yield return new WaitForSeconds(Random.Range(30f, 60f));
 
         while (currentActivity == NPCActivity.EveningRoutine)
@@ -769,11 +807,14 @@ public class NPCRoutineAI : MonoBehaviour
         {
             // Đi đến gần NPC khác
             NPCRoutineAI targetNPC = otherNPCs[Random.Range(0, otherNPCs.Length)];
-            yield return StartCoroutine(MoveToPosition(targetNPC.transform.position + Vector3.back * 2f));
+            bool reachedSocial = false;
+            moveRoutine = StartCoroutine(MoveToPosition(targetNPC.transform.position + Vector3.back * 2f, r => reachedSocial = r));
+            yield return moveRoutine;
 
             // Giao tiếp (xoay mặt về phía NPC khác)
             transform.LookAt(targetNPC.transform.position);
-            if (animator) animator.SetTrigger("Talk");
+            // ⚠️ Animation disabled
+            // if (animator) animator.SetTrigger("Talk");
 
             yield return new WaitForSeconds(Random.Range(60f, 120f)); // 1-2 phút giao tiếp
         }
@@ -781,7 +822,9 @@ public class NPCRoutineAI : MonoBehaviour
         {
             // Không có NPC nào, đi lang thang
             Vector3 socialSpot = villageCenter.position + new Vector3(Random.Range(-3f, 3f), 0, Random.Range(-3f, 3f));
-            yield return StartCoroutine(MoveToPosition(socialSpot));
+            bool reachSocial2 = false;
+            moveRoutine = StartCoroutine(MoveToPosition(socialSpot, r => reachSocial2 = r));
+            yield return moveRoutine;
             yield return new WaitForSeconds(Random.Range(30f, 60f));
         }
 
@@ -797,11 +840,14 @@ public class NPCRoutineAI : MonoBehaviour
 
         // Chuẩn bị đi ngủ - di chuyển về khu vực gần nhà
         Vector3 prepArea = homeLocation.position + new Vector3(Random.Range(-3f, 3f), Random.Range(-3f, 3f), 0f);
-        yield return StartCoroutine(MoveToPosition(prepArea));
+        bool reachedNight = false;
+        moveRoutine = StartCoroutine(MoveToPosition(prepArea, r => reachedNight = r));
+        yield return moveRoutine;
 
         // Đứng yên/thức dậy
         transform.rotation = Quaternion.LookRotation(Vector3.forward);
-        if (animator) animator.SetTrigger("Prepare");
+        // ⚠️ Animation disabled
+        // if (animator) animator.SetTrigger("Prepare");
         yield return new WaitForSeconds(Random.Range(30f, 60f));
 
         while (currentActivity == NPCActivity.NightRoutine)
@@ -809,6 +855,119 @@ public class NPCRoutineAI : MonoBehaviour
             yield return new WaitForSeconds(1f);
         }
     }
+
+    // === MARKET TRADING ROUTINE ===
+
+    IEnumerator MarketTradingRoutine()
+    {
+        Debug.Log($"🏪 {gameObject.name}: Starting MarketTradingRoutine");
+
+        NPCTrader trader = GetComponent<NPCTrader>();
+        if (trader == null)
+        {
+            Debug.LogWarning($"⚠️ {gameObject.name}: No NPCTrader component found!");
+            yield break;
+        }
+
+        // -------------------------------
+        // STEP 0 — Find Market & StandPoint
+        // -------------------------------
+        if (marketStallLocation == null)
+        {
+            Debug.Log($"🔍 {name}: Searching for Market in scene...");
+
+            GameObject camp =
+                GameObject.FindWithTag("Camp") ??
+                GameObject.Find("Camp(Clone)") ??
+                GameObject.Find("Camp");
+
+            if (camp != null)
+            {
+                Transform market =
+                    camp.transform.Find("Market_0") ??
+                    camp.transform.Find("Market") ??
+                    camp.transform.Find("FlowerMarket_0");
+
+                if (market != null)
+                {
+                    // Tìm theo tag "StandPoint" trong children của market
+                    Transform stand = null;
+                    foreach (Transform child in market)
+                    {
+                        if (child.CompareTag("StandPoint"))
+                        {
+                            stand = child;
+                            break;
+                        }
+                    }
+
+                    if (stand != null)
+                    {
+                        // Force X = 0 relative to market
+                        Vector3 correctedLocalPos = stand.localPosition;
+                        correctedLocalPos.x = 0f;
+                        stand.localPosition = correctedLocalPos;
+                        
+                        marketStallLocation = stand;
+                        Debug.Log($"📍 {name}: Using StandPoint (by Tag) - World pos: {stand.position}, Local pos: {stand.localPosition}, Market at: {market.position}");
+                    }
+                    else
+                    {
+                        // Tạo vị trí BÊN CẠNH market (tránh collider)
+                        GameObject standPointObj = new GameObject($"{market.name}_StandPoint_Auto");
+                        standPointObj.transform.SetParent(camp.transform);
+                        standPointObj.transform.position = market.position;
+
+                        marketStallLocation = standPointObj.transform;
+                        Debug.LogWarning($"⚠️ No child with tag 'StandPoint' found! Created at {standPointObj.transform.position}");
+                    }
+                }
+                else
+                {
+                    Debug.LogError($"❌ {name}: Market not found under Camp!");
+                    yield break;
+                }
+            }
+            else
+            {
+                Debug.LogError($"❌ {name}: Camp not found in scene!");
+                yield break;
+            }
+        }
+
+        Vector3 stallPos = marketStallLocation.position;
+
+        // -------------------------------
+        // STEP 1 — Move STRAIGHT TO MARKET
+        // -------------------------------
+        Debug.Log($"🚶 {name}: Moving directly to MARKET → World: {stallPos}, Local to parent: {marketStallLocation.localPosition}");
+
+        bool reached = false;
+        moveRoutine = StartCoroutine(MoveToPosition(stallPos, r => reached = r));
+        yield return moveRoutine;
+        if (!reached)
+        {
+            Debug.LogError($"❌ {name}: FAILED to reach Market Stall");
+            yield break;
+        }
+
+        Debug.Log($"🏪 {name}: REACHED Market Stall → shop open!");
+
+        // -------------------------------
+        // STEP 2 — Idle while trading
+        // -------------------------------
+        currentState = NPCState.Idle;
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb) rb.velocity = Vector2.zero;
+
+        while (currentActivity == NPCActivity.MarketTrading)
+        {
+            yield return new WaitForSeconds(1f);
+        }
+
+        Debug.Log($"🏁 {name}: MarketTrading ended.");
+    }
+
 
     // === FLOWER GATHERING LOGIC ===
 
@@ -985,244 +1144,231 @@ public class NPCRoutineAI : MonoBehaviour
 
 
 
-            if (animator != null)
-            {
-                try { animator.SetTrigger("Gather"); }
-                catch
-                { // Debug.LogWarning($"⚠️ {gameObject.name}: Trigger Gather fail"); }
-                }
+            // ⚠️ Animation disabled - no animation parameters yet
+            // if (animator != null)
+            // {
+            //     try { animator.SetTrigger("Gather"); }
+            //     catch
+            //     { 
+            //         // Debug.LogWarning($"⚠️ {gameObject.name}: Trigger Gather fail"); 
+            //     }
+            // }
 
-                yield return StartCoroutine(GatheringTimer(flower));
+            yield return StartCoroutine(GatheringTimer(flower));
 
-                // Kiểm tra nếu NPC bị ẩn sprite trong lúc hái
-                //         if (sr != null && !sr.enabled)
-                //     // Debug.LogError($"❌ {gameObject.name}: SpriteRenderer bị tắt trong lúc hái hoa!");
-                // // else
-                // //     // Debug.Log($"✅ {gameObject.name}: SpriteRenderer vẫn hiển thị bình thường.");
+        // Kiểm tra nếu NPC bị ẩn sprite trong lúc hái
+        //         if (sr != null && !sr.enabled)
+        //     // Debug.LogError($"❌ {gameObject.name}: SpriteRenderer bị tắt trong lúc hái hoa!");
+        // // else
+        // //     // Debug.Log($"✅ {gameObject.name}: SpriteRenderer vẫn hiển thị bình thường.");
 
-                // //                 // Debug.Log($"✅ {gameObject.name}: Hoàn thành việc hái hoa!");
-            }
+        // //                 // Debug.Log($"✅ {gameObject.name}: Hoàn thành việc hái hoa!");
+    }
 
 
-        IEnumerator GatheringTimer(FlowerObject flower)
+    IEnumerator GatheringTimer(FlowerObject flower)
+    {
+        float timer = 0f;
+        float logInterval = 1f; // Log mỗi 1 giây
+        float lastLogTime = 0f;
+        Vector3 lockedPos = transform.position;
+
+        // Debug.Log($"⏱️ {gameObject.name}: Bắt đầu đếm ngược hái hoa ({gatheringTime}s)");
+
+        // Lock flower ngay khi bắt đầu gathering
+        flower.isAvailable = false;
+
+        // Đảm bảo flower vẫn tồn tại
+        if (flower.gameObject == null)
         {
-            float timer = 0f;
-            float logInterval = 1f; // Log mỗi 1 giây
-            float lastLogTime = 0f;
-            Vector3 lockedPos = transform.position;
+            // Debug.LogError($"❌ {gameObject.name}: Hoa đã bị destroy!");
+            yield break;
+        }
 
-            // Debug.Log($"⏱️ {gameObject.name}: Bắt đầu đếm ngược hái hoa ({gatheringTime}s)");
+        while (timer < gatheringTime)
+        {
+            transform.position = lockedPos;
 
-            // Lock flower ngay khi bắt đầu gathering
-            flower.isAvailable = false;
-
-            // Đảm bảo flower vẫn tồn tại
-            if (flower.gameObject == null)
+            float currentDistance = Vector3.Distance(transform.position, flower.position);
+            if (currentDistance > flowerDetectionRadius * 2f)
             {
-                // Debug.LogError($"❌ {gameObject.name}: Hoa đã bị destroy!");
+                // Debug.LogWarning($"⚠️ {gameObject.name}: NPC rời xa hoa ({currentDistance:F2}) — có thể rơi xuống?");
+                // Debug.Log($"📍 LockedPos={lockedPos}, CurrentPos={transform.position}");
                 yield break;
             }
 
-            while (timer < gatheringTime)
+            if (Mathf.Abs(transform.position.z) > 0.1f)
             {
-                transform.position = lockedPos;
-
-                float currentDistance = Vector3.Distance(transform.position, flower.position);
-                if (currentDistance > flowerDetectionRadius * 2f)
-                {
-                    // Debug.LogWarning($"⚠️ {gameObject.name}: NPC rời xa hoa ({currentDistance:F2}) — có thể rơi xuống?");
-                    // Debug.Log($"📍 LockedPos={lockedPos}, CurrentPos={transform.position}");
-                    yield break;
-                }
-
-                if (Mathf.Abs(transform.position.z) > 0.1f)
-                {
-                    // Debug.LogError($"❌ {gameObject.name}: Z bị lệch khỏi mặt phẳng 2D ({transform.position.z:F3}) — NPC có thể biến mất khỏi camera!");
-                    transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
-                }
-
-                timer += Time.deltaTime;
-                yield return null;
+                // Debug.LogError($"❌ {gameObject.name}: Z bị lệch khỏi mặt phẳng 2D ({transform.position.z:F3}) — NPC có thể biến mất khỏi camera!");
+                transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
             }
 
-
-            // Hoàn thành hái - hoa biến mất
-            if (flower.gameObject != null)
-            {
-                // Debug.Log($"🎉 {gameObject.name}: Hoàn thành hái hoa '{flower.gameObject.name}'!");
-
-                if (animator)
-                {
-                    animator.SetTrigger("GatherComplete");
-                }
-                yield return new WaitForSeconds(0.5f); // Giảm delay
-
-                // ✅ Gọi FlowerManager để quản lý respawn
-                if (FlowerManager.Instance != null)
-                {
-                    // Debug.Log($"🔄 {gameObject.name}: Gửi hoa {flower.gameObject.name} cho FlowerManager để xử lý");
-                    StartCoroutine(DelayedRemoveFlower(flower.gameObject, 1.5f));
-
-                }
-                else
-                {
-                    // Debug.LogWarning($"⚠️ {gameObject.name}: FlowerManager null, tự hủy hoa!");
-                    Destroy(flower.gameObject, 0.1f);
-                }
-
-                // Debug.Log($"🌸 NPC {gameObject.name} đã hái hoa thành công tại {flower.position}");
-            }
-            else
-            {
-                // Debug.LogError($"❌ {gameObject.name}: Hoa không tồn tại khi hoàn thành hái!");
-            }
+            timer += Time.deltaTime;
+            yield return null;
         }
-        IEnumerator DelayedRemoveFlower(GameObject flower, float delay)
+
+
+        // Hoàn thành hái - hoa biến mất
+        if (flower.gameObject != null)
         {
-            yield return new WaitForSeconds(delay);
+            // Debug.Log($"🎉 {gameObject.name}: Hoàn thành hái hoa '{flower.gameObject.name}'!");
+
+            // ⚠️ Animation disabled
+            // if (animator)
+            // {
+            //     animator.SetTrigger("GatherComplete");
+            // }
+            yield return new WaitForSeconds(0.5f); // Giảm delay
+
+            // ✅ Gọi FlowerManager để quản lý respawn
             if (FlowerManager.Instance != null)
-                FlowerManager.Instance.RemoveFlower(flower);
+            {
+                // Debug.Log($"🔄 {gameObject.name}: Gửi hoa {flower.gameObject.name} cho FlowerManager để xử lý");
+                StartCoroutine(DelayedRemoveFlower(flower.gameObject, 1.5f));
+
+            }
             else
-                Destroy(flower);
+            {
+                // Debug.LogWarning($"⚠️ {gameObject.name}: FlowerManager null, tự hủy hoa!");
+                Destroy(flower.gameObject, 0.1f);
+            }
+
+            // Debug.Log($"🌸 NPC {gameObject.name} đã hái hoa thành công tại {flower.position}");
+        }
+        else
+        {
+            // Debug.LogError($"❌ {gameObject.name}: Hoa không tồn tại khi hoàn thành hái!");
         }
     }
+    IEnumerator DelayedRemoveFlower(GameObject flower, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (FlowerManager.Instance != null)
+            FlowerManager.Instance.RemoveFlower(flower);
+        else
+            Destroy(flower);
+    }
+
 
 
     // === MOVEMENT LOGIC ===
 
-    public IEnumerator MoveToPosition(Vector3 targetPos)
+    public IEnumerator MoveToPosition(Vector3 targetPos, System.Action<bool> onComplete)
     {
+        if (physicsLockedForMarket)
+        {
+            Debug.Log($"⛔ {name}: Movement blocked — market active");
+            onComplete?.Invoke(false);
+            yield break;
+        }
         if (mapGenerator == null)
             mapGenerator = FindObjectOfType<MapGenerator>();
 
-        targetPos.z = 0f;
+        targetPos.z = 0;
         Rigidbody2D rb = GetComponent<Rigidbody2D>();
-        if (!rb) yield break;
-
-        currentTargetPosition = targetPos;
-        currentState = NPCState.MovingToTarget;
-
-        // 🔍 Tìm đường bằng A*
-        List<Vector3> path = FindPath(transform.position, targetPos);
-        if (path == null || path.Count == 0)
+        if (!rb)
         {
-            // Debug.LogWarning($"⚠️ {name}: Không tìm được đường tới {targetPos}");
+            onComplete?.Invoke(false);
             yield break;
         }
 
-        float moveTimeout = 15f;
-        float elapsed = 0f;
-        float targetStopDistance = 0.6f;  // đủ gần để dừng sớm
-        float stopDistance = 0.1f;
-        float repathCooldown = 0.3f;
-        int obstacleMask = LayerMask.GetMask("Obstacle", "Water");
+        Debug.Log($"🚶 {name}: MoveToPosition → {targetPos}");
+
+        currentState = NPCState.MovingToTarget;
+        currentTargetPosition = targetPos;
+
+        // Convert to tile
+        Vector2Int endTile = new(Mathf.RoundToInt(targetPos.x), Mathf.RoundToInt(targetPos.y));
+
+        if (endTile.x < 0 || endTile.x >= mapGenerator.width ||
+            endTile.y < 0 || endTile.y >= mapGenerator.height)
+        {
+            Debug.LogError($"❌ {name}: Target OUT OF MAP");
+            onComplete?.Invoke(false);
+            yield break;
+        }
+
+        // Find A* path
+        List<Vector3> path = FindPath(transform.position, targetPos);
+
+        if (path == null || path.Count == 0)
+        {
+            Debug.LogError($"❌ {name}: NO PATH FOUND");
+            onComplete?.Invoke(false);
+            yield break;
+        }
+
+        int index = 0;
+        float timeout = 10f;
+        float timer = 0f;
         int repathCount = 0;
 
-        // Debug.Log($"🧭 {name}: Path có {path.Count} điểm → di chuyển theo pathfinding");
-        int index = 0;
+        float stopDistance = 0.15f;
+        float finalStop = 0.45f;
 
-        Animator anim = animator;
-        Transform player = GameObject.FindWithTag("Player")?.transform;
+        int mask = LayerMask.GetMask("Obstacle", "Water");
 
         while (index < path.Count)
         {
-            // 🧍‍♂️ Nếu người chơi lại gần → dừng di chuyển để hội thoại
-            if (player != null)
-            {
-                float distToPlayer = Vector3.Distance(transform.position, player.position);
-                if (distToPlayer < 1.5f) // bán kính hội thoại
-                {
-                    // Debug.Log($"💬 {name}: Dừng pathfinding vì người chơi lại gần");
-                    break;
-                }
-            }
+            Vector3 next = path[index];
+            next.z = 0;
 
-            Vector3 nextPoint = path[index];
-            nextPoint.z = 0f;
-            Vector2 dir = ((Vector2)nextPoint - rb.position);
+            Vector2 dir = ((Vector2)next - rb.position);
             float dist = dir.magnitude;
 
-            if (dist > stopDistance)
-            {
-                dir = dir.normalized;
-
-                // 🧱 Kiểm tra vật cản
-                RaycastHit2D hit = Physics2D.Raycast(rb.position, dir, moveSpeed * Time.fixedDeltaTime + 0.05f, obstacleMask);
-                if (hit.collider != null)
-                {
-                    repathCount++;
-                    // Debug.Log($"🚧 {name}: Gặp vật cản {hit.collider.name} → tính lại đường ({repathCount})");
-
-                    if (repathCount > 10)
-                    {
-                        // Debug.LogError($"💥 {name}: Repath quá 10 lần – hủy di chuyển!");
-                        break;
-                    }
-
-                    yield return new WaitForSeconds(repathCooldown);
-                    path = FindPath(transform.position, targetPos);
-                    index = 0;
-                    continue;
-                }
-
-                // 🚶 Di chuyển từng bước nhỏ
-                rb.MovePosition(rb.position + dir * moveSpeed * Time.fixedDeltaTime);
-
-                // Xoay mặt
-                if (dir.x != 0 && transform.localScale.x != Mathf.Sign(dir.x))
-                {
-                    Vector3 scale = transform.localScale;
-                    scale.x = Mathf.Sign(dir.x) * Mathf.Abs(scale.x);
-                    transform.localScale = scale;
-                }
-
-                // Animation
-                if (anim)
-                {
-                    anim.SetBool("Walking", true);
-                    anim.SetBool("Idle", false);
-                }
-            }
-            else
+            if (dist < stopDistance)
             {
                 index++;
+                continue;
             }
 
-            // ✅ Dừng sớm nếu đã đủ gần mục tiêu
+            dir.Normalize();
+
+            // Obstacle check
+            if (Physics2D.Raycast(rb.position, dir, 0.25f, mask))
+            {
+                repathCount++;
+                if (repathCount > 4)
+                {
+                    Debug.LogError($"❌ {name}: Cannot repath → FAIL");
+                    onComplete?.Invoke(false);
+                    yield break;
+                }
+
+                path = FindPath(transform.position, targetPos);
+                index = 0;
+                yield return new WaitForSeconds(0.1f);
+                continue;
+            }
+
+            // Move
+            rb.MovePosition(rb.position + dir * moveSpeed * Time.fixedDeltaTime);
+
             float distToTarget = Vector3.Distance(rb.position, targetPos);
-            if (distToTarget <= targetStopDistance)
+            if (distToTarget < finalStop)
             {
-                // Debug.Log($"🏁 {name}: Đã đủ gần mục tiêu (≈{distToTarget:F2}) → kết thúc di chuyển sớm");
-                break;
+                Debug.Log($"🏁 {name}: Arrived target");
+                currentState = NPCState.Idle;
+                onComplete?.Invoke(true);
+                yield break;
             }
 
-            // Timeout an toàn
-            elapsed += Time.fixedDeltaTime;
-            if (elapsed > moveTimeout)
-            {
-                // Debug.LogWarning($"⏰ {name}: Hết thời gian di chuyển ({moveTimeout}s) → dừng path");
-                break;
-            }
+            // Timeout removed - let NPC take as long as needed to reach destination
+            // timer += Time.deltaTime;
+            // if (timer >= timeout)
+            // {
+            //     Debug.LogError($"⏰ {name}: TIMEOUT");
+            //     onComplete?.Invoke(false);
+            //     yield break;
+            // }
 
             yield return new WaitForFixedUpdate();
         }
 
-        // 🛑 Khi đến nơi hoặc dừng sớm
-        if (anim)
-        {
-            anim.SetBool("Walking", false);
-            anim.SetBool("Idle", true);
-        }
-
         rb.velocity = Vector2.zero;
         currentState = NPCState.Idle;
-        currentTargetPosition = Vector3.zero;
-
-        // Debug.Log($"✅ {gameObject.name}: Đã dừng hoặc đến mục tiêu {targetPos}");
+        onComplete?.Invoke(true);
     }
-
-
-
 
 
     // === PAUSE/RESUME SYSTEM ===
@@ -1248,6 +1394,32 @@ public class NPCRoutineAI : MonoBehaviour
             animator.SetBool("Idle", true);
         }
     }
+    public void DisablePhysicsForMarket()
+    {
+        physicsLockedForMarket = true;
+        if (moveRoutine != null)
+        {
+            StopCoroutine(moveRoutine);
+            moveRoutine = null;
+        }
+
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.velocity = Vector2.zero;
+            rb.simulated = false;
+        }
+    }
+
+    public void EnablePhysicsAfterMarket()
+    {
+        physicsLockedForMarket = false;
+        Rigidbody2D rb = GetComponent<Rigidbody2D>();
+        if (rb != null)
+        {
+            rb.simulated = true;
+        }
+    }
 
 
 
@@ -1255,9 +1427,9 @@ public class NPCRoutineAI : MonoBehaviour
     {
         if (!isPaused) return;
         isPaused = false;
-        
+
         Debug.Log($"▶️ {gameObject.name}: Resuming activity - SimpleFlowerHunting will continue checking conditions");
-        
+
         // SimpleFlowerHunting vẫn đang chạy, chỉ cần unpause
         // Coroutine sẽ tự tiếp tục từ vị trí đã pause
         // KHÔNG start coroutine mới để tránh duplicate
@@ -1285,6 +1457,9 @@ public class NPCRoutineAI : MonoBehaviour
                 break;
             case NPCActivity.FlowerHunting:
                 yield return StartCoroutine(FlowerHuntingRoutine());
+                break;
+            case NPCActivity.MarketTrading:
+                yield return StartCoroutine(MarketTradingRoutine());
                 break;
             case NPCActivity.LunchBreak:
                 yield return StartCoroutine(LunchBreakRoutine());
@@ -1486,7 +1661,7 @@ public class NPCRoutineAI : MonoBehaviour
     #endregion
 
     // ===== FLOWER GATHERING INTEGRATION =====
-    
+
     /// <summary>
     /// Called by NavActionHandler when player requests flower gathering
     /// </summary>
@@ -1494,7 +1669,7 @@ public class NPCRoutineAI : MonoBehaviour
     {
         Debug.Log($"🌸 {gameObject.name}: Player requested flower gathering!");
         playerMadeRequest = true;
-        
+
         // Reset request after completion
         if (stopResetCoroutine != null)
         {
@@ -1502,16 +1677,16 @@ public class NPCRoutineAI : MonoBehaviour
         }
         stopResetCoroutine = StartCoroutine(ResetPlayerRequest());
     }
-    
+
     private Coroutine stopResetCoroutine;
-    
+
     IEnumerator ResetPlayerRequest()
     {
         yield return new WaitForSeconds(30f);
         playerMadeRequest = false;
         Debug.Log($"🌸 {gameObject.name}: Reset player request (timeout)");
     }
-    
+
     /// <summary>
     /// Check if NPC currently has player gathering request
     /// </summary>
@@ -1519,7 +1694,7 @@ public class NPCRoutineAI : MonoBehaviour
     {
         return playerMadeRequest;
     }
-    
+
     /// <summary>
     /// Force reset player request (debug/external use)
     /// </summary>
@@ -1534,3 +1709,4 @@ public class NPCRoutineAI : MonoBehaviour
         }
     }
 }
+

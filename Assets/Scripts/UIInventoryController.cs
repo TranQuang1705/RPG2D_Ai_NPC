@@ -20,6 +20,9 @@ namespace Inventory.UI
         private readonly List<UIInventoryItem> uiSlots = new();
         private UIInventoryItem selected;
 
+        // Public getter for shop integration
+        public IReadOnlyList<UIInventoryItem> UISlots => uiSlots;
+
         void Awake()
         {
             if (rebuildOnAwake) BuildSlots();
@@ -101,9 +104,49 @@ namespace Inventory.UI
             else
             {
                 Debug.Log($"[UI] Click slot {clicked.Index}: {slot.item.displayName} x{slot.quantity}");
+                
+                // Check nếu đang trong shop → Notify selection manager
+                if (ShopInventorySelectionManager.Instance != null && IsShopOpen())
+                {
+                    // Chỉ cho phép chọn items có trong cart (đã mua từ shop)
+                    if (ShoppingCartManager.Instance != null && slot.item.databaseItemId > 0)
+                    {
+                        if (ShoppingCartManager.Instance.IsItemInCart(slot.item.databaseItemId))
+                        {
+                            // Unborder all shop items (khi chọn inventory item)
+                            ItemTradePanelController.DeselectAllShopItems();
+                            
+                            ShopInventorySelectionManager.Instance.SelectInventoryItem(slot.item, clicked.Index);
+                            Debug.Log($"🔄 [Inventory] Selected for return: {slot.item.displayName}");
+                        }
+                    }
+                }
+                
                 // Hiển thị panel chi tiết khi click vào item
                 if (ItemDetailPanel.Instance != null)
                     ItemDetailPanel.Instance.ShowDetails(slot.item);
+            }
+        }
+
+        /// <summary>
+        /// Check if shop is open
+        /// </summary>
+        private bool IsShopOpen()
+        {
+            GameObject tradeUI = GameObject.FindWithTag("TradeUI");
+            if (tradeUI == null) tradeUI = GameObject.Find("TradeUI");
+            return tradeUI != null && tradeUI.activeInHierarchy;
+        }
+
+        /// <summary>
+        /// Deselect all inventory items (call from shop when selecting shop item)
+        /// </summary>
+        public void DeselectAll()
+        {
+            if (selected != null)
+            {
+                selected.Deselect();
+                selected = null;
             }
         }
 

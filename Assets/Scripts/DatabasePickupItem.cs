@@ -71,7 +71,7 @@ public class DatabasePickupItem : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
 
-        Debug.Log($"📚 {name}: Database loaded, initializing item...");
+
         InitializeFromDatabase();
     }
 
@@ -98,7 +98,6 @@ public class DatabasePickupItem : MonoBehaviour
             return;
         }
 
-        Debug.Log($"✅ {name}: Found database item: {databaseItem.item_name} (ID: {databaseItem.item_id})");
 
         // Tạo hoặc tìm ItemSO tương ứng
         runtimeItemSO = DatabaseItemManager.Instance.FindItemSO(databaseItem.item_id);

@@ -8,11 +8,14 @@ public class Stamina : Singleton<Stamina>
     public int CurrentStamina {  get; private set; }
 
     [SerializeField] private Sprite fullStaminaImage, emptyStaminaImage;
-    [SerializeField] private int timeBetweenStaminaRefesh = 3;
+    [SerializeField] private float timeBetweenStaminaRefesh = 5f;
+    [SerializeField] private float timeAfterUseToStartRegen = 5f;
 
     private Transform staminaContainer;
     private int startingStamina = 3;
     private int maxStamina;
+    private float lastStaminaUseTime;
+    private Coroutine regenCoroutine;
     const string STAMINA_COINTAINER_TEXT = "StaminaContainer";
 
     protected override void Awake()
@@ -24,12 +27,21 @@ public class Stamina : Singleton<Stamina>
     private void Start()
     {
         staminaContainer = GameObject.Find(STAMINA_COINTAINER_TEXT).transform;
+        StartAutoRegen();
     }
 
     public void UseStamina()
     {
         CurrentStamina--;
+        lastStaminaUseTime = Time.time;
         UpdateStaminaImages();
+        
+        // Restart auto-regen timer
+        if (regenCoroutine != null)
+        {
+            StopCoroutine(regenCoroutine);
+        }
+        regenCoroutine = StartCoroutine(AutoRegenAfterDelay());
     }
 
     public void RefreshStamina()
@@ -40,6 +52,29 @@ public class Stamina : Singleton<Stamina>
         }
         UpdateStaminaImages();
     }
+    
+    private void StartAutoRegen()
+    {
+        if (regenCoroutine != null)
+        {
+            StopCoroutine(regenCoroutine);
+        }
+        regenCoroutine = StartCoroutine(AutoRegenAfterDelay());
+    }
+    
+    private IEnumerator AutoRegenAfterDelay()
+    {
+        // Wait for delay after last use
+        yield return new WaitForSeconds(timeAfterUseToStartRegen);
+        
+        // Then continuously regenerate
+        while(CurrentStamina < maxStamina)
+        {
+            yield return new WaitForSeconds(timeBetweenStaminaRefesh);
+            RefreshStamina();
+        }
+    }
+    
     private IEnumerator RefreshStaminaRoutine()
     {
         while(true)

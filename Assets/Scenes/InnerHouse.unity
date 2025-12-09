@@ -391,6 +391,8 @@ MonoBehaviour:
   outputTMP: {fileID: 777216615}
   toggleButton: {fileID: 273040223}
   buttonLabel: {fileID: 467344862}
+  forwardToBot: 0
+  flaskUrl: http://127.0.0.1:5000/chat
 --- !u!1 &137827194
 GameObject:
   m_ObjectHideFlags: 0
@@ -685,7 +687,9 @@ MonoBehaviour:
   biome: {fileID: 11400000, guid: 19dbbd9b7fe059e4080c04d9316459d5, type: 2}
   groundTM: {fileID: 1654112114}
   overlayTM: {fileID: 1070685181}
+  waterTM: {fileID: 0}
   foregroundTM: {fileID: 0}
+  roadTM: {fileID: 0}
   propsParent: {fileID: 571977947}
   width: 80
   height: 48
@@ -722,6 +726,42 @@ MonoBehaviour:
   player: {fileID: 0}
   confinerPadding: 0
   snapPlayerToCenter: 1
+  housePrefabs: []
+  villageParent: {fileID: 0}
+  houseTiles: 8
+  roadW: 3
+  plotMargin: 2
+  stonePathTM: {fileID: 0}
+  stoneRuleTile: {fileID: 0}
+  stonePathWidth: 3
+  useOrganicVillage: 1
+  targetHouses: 24
+  lotWidthMin: 6
+  lotWidthMax: 9
+  lotDepthMin: 5
+  lotDepthMax: 7
+  lotSetback: 2
+  lotGap: 2
+  housePickRetry: 0.25
+  fountainPrefab: {fileID: 0}
+  lampPrefab: {fileID: 0}
+  benchPrefab: {fileID: 0}
+  villagePrefab: {fileID: 0}
+  villageFootprint: {x: 18, y: 14}
+  villagePadding: 2
+  villageMinRoadDist: 3
+  villageTryCount: 150
+  villageRectWidth: 48
+  villageRectHeight: 32
+  villageCentered: 1
+  villageOffset: {x: 0, y: 0}
+  fireflyTrailPrefab: {fileID: 0}
+  grid: {fileID: 0}
+  bridgeTM: {fileID: 0}
+  bridgeTileHorizontal: {fileID: 0}
+  bridgeTileVertical: {fileID: 0}
+  bridgeWidthHorizontal: 5
+  bridgeHeightVertical: 5
 --- !u!4 &249573507
 Transform:
   m_ObjectHideFlags: 0
@@ -2805,7 +2845,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c975ae21631a7f74ab7d5ad3870c9818, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sceneToLoad: TestAutoGenertorMap
+  sceneToLoad: MainGameScene
   sceneTransitionName: EEntry
 --- !u!4 &938321974
 Transform:
@@ -3573,6 +3613,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a73955e7a6f0ed74f8065ed27d29eccf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  defaultMusic: {fileID: 0}
+  scene3Music: {fileID: 0}
+  scene4Music: {fileID: 0}
 --- !u!4 &1256264855
 Transform:
   m_ObjectHideFlags: 0
@@ -17650,11 +17693,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1467281863540911172, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 14.12
+      value: -0.43437195
       objectReference: {fileID: 0}
     - target: {fileID: 1467281863540911172, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.y
-      value: -2.49
+      value: -2.1049
       objectReference: {fileID: 0}
     - target: {fileID: 2122619552346418198, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_ClearFlags
@@ -17698,7 +17741,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2434643086964692087, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0
+      value: 9.23
       objectReference: {fileID: 0}
     - target: {fileID: 2434643086964692087, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.y
@@ -17742,7 +17785,7 @@ PrefabInstance:
       objectReference: {fileID: 1477056970}
     - target: {fileID: 4262065710094593048, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 13.271841
+      value: 4.0418415
       objectReference: {fileID: 0}
     - target: {fileID: 4262065710094593048, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.y
@@ -22572,6 +22615,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dialoguePanel: {fileID: 1058174421}
+  chatSpeaker: {fileID: 0}
+  speechRecognition: {fileID: 0}
+  recordSeconds: 5
+  useRoutineAI: 1
 --- !u!4 &8679845242693057580
 Transform:
   m_ObjectHideFlags: 0

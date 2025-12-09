@@ -125,7 +125,6 @@ public class ChunkedWorld : MonoBehaviour
             if (t.name.IndexOf("Props", StringComparison.OrdinalIgnoreCase) >= 0) propsParent = t;
 
         if (groundTM == null || foregroundTM == null)
-            Debug.LogWarning("Chunk prefab thiếu Ground/Foreground Tilemap con hoặc tên không đúng!");
 
         // clear tilemaps (lưu ý: dùng local cell coords khi tilemap đặt origin tại chunk origin)
         groundTM?.ClearAllTiles();

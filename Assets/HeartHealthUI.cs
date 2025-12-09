@@ -42,14 +42,12 @@ public class HeartHealthUI : MonoBehaviour
             layoutElement.preferredHeight = 64;
         }
 
-        Debug.Log("HeartHealthUI: Initialized " + maxHearts + " hearts for " + maxHealth + " HP");
     }
 
     public void UpdateHearts(int currentHealth, int maxHealth)
     {
         if (heartImages == null || heartImages.Length == 0)
         {
-            Debug.LogWarning("HeartHealthUI: Hearts not initialized!");
             return;
         }
 

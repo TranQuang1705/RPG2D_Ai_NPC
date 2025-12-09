@@ -6,11 +6,23 @@ public class PickUp : MonoBehaviour
 {
     private enum PickUpType
     {
-        GoldCoin,
-        Stamina,
+        ObalCoin,      // 1 copper
+        VarosCoin,     // 10 copper
+        SylvCoin,      // 100 copper
+        FeronCoin,     // 1000 copper
+        AstrylCoin,    // 1000 copper (alternative)
+        AurumCoin,     // 10000 copper
+        EmberExp,      // 1 exp
+        GroveExp,      // 10 exp
+        TideExp,       // 100 exp
+        VoidExp,       // 1000 exp
+        RadiantExp,    // 10000 exp
+        BloodmoonExp,  // 100000 exp
         Health,
     }
     [SerializeField] private PickUpType type;
+    [SerializeField] private int currencyAmount = 1;
+    [SerializeField] private int expAmount = 1;
     [SerializeField] private float pickUpDistance = 5f;
     [SerializeField] private float accelartionRate = .2f;
     [SerializeField] private float moveSpeed = 3f;
@@ -80,13 +92,69 @@ public class PickUp : MonoBehaviour
     {
         switch (type)
         {
-            case PickUpType.GoldCoin:
-                EconomyManagement.Instance.UpdateCurrentGold();
-                
+            case PickUpType.ObalCoin:
+                EconomyManagement.Instance.AddObal(currencyAmount);
+                AddToCoinInventory("Obal", currencyAmount);
                 break;
 
-            case PickUpType.Stamina:
-                Stamina.Instance.RefreshStamina();
+            case PickUpType.VarosCoin:
+                EconomyManagement.Instance.AddVaros(currencyAmount);
+                AddToCoinInventory("Varos", currencyAmount);
+                break;
+
+            case PickUpType.SylvCoin:
+                EconomyManagement.Instance.AddSylv(currencyAmount);
+                AddToCoinInventory("Sylv", currencyAmount);
+                break;
+
+            case PickUpType.FeronCoin:
+                EconomyManagement.Instance.AddFeron(currencyAmount);
+                AddToCoinInventory("Feron", currencyAmount);
+                break;
+
+            case PickUpType.AstrylCoin:
+                // ⭐ ASTRYL: Đồng tiền phù thủy - chỉ những NPC/Player có tag "Wizard" mới nhặt được
+                if (PlayerController.Instance != null && PlayerController.Instance.CompareTag("Wizard"))
+                {
+                    EconomyManagement.Instance.AddAstryl(currencyAmount);
+                    AddToCoinInventory("Astryl", currencyAmount);
+                    Debug.Log("✨ Wizard currency (ASTRYL) picked up!");
+                }
+                else
+                {
+                    Debug.LogWarning("⛔ ASTRYL coin requires Wizard tag! This coin is for wizards only.");
+                    // Không destroy coin, để coin nằm đó (chỉ wizard mới nhặt được)
+                    return; // Exit without destroying the coin
+                }
+                break;
+
+            case PickUpType.AurumCoin:
+                EconomyManagement.Instance.AddAurum(currencyAmount);
+                AddToCoinInventory("Aurum", currencyAmount);
+                break;
+
+            case PickUpType.EmberExp:
+                AddExp(expAmount);
+                break;
+
+            case PickUpType.GroveExp:
+                AddExp(expAmount);
+                break;
+
+            case PickUpType.TideExp:
+                AddExp(expAmount);
+                break;
+
+            case PickUpType.VoidExp:
+                AddExp(expAmount);
+                break;
+
+            case PickUpType.RadiantExp:
+                AddExp(expAmount);
+                break;
+
+            case PickUpType.BloodmoonExp:
+                AddExp(expAmount);
                 break;
 
             case PickUpType.Health:
@@ -97,6 +165,107 @@ public class PickUp : MonoBehaviour
             default:
                 Debug.LogWarning("Unknown pickup type!");
                 break;
+        }
+    }
+    
+    private void AddToCoinInventory(string coinName, int amount)
+    {
+        // Thêm coin vào CoinInventorySystem (UI display)
+        if (CoinInventorySystem.Instance != null)
+        {
+            // Lấy CoinSO từ DatabaseCoinLoader (runtime creation)
+            CoinSO coinSO = null;
+            
+            if (DatabaseCoinLoader.Instance != null)
+            {
+                coinSO = DatabaseCoinLoader.Instance.GetCoinSOByName(coinName);
+            }
+            
+            // Fallback: Load từ Resources nếu DatabaseCoinLoader chưa ready
+            if (coinSO == null)
+            {
+                coinSO = Resources.Load<CoinSO>($"Coins/{coinName}");
+            }
+            
+            if (coinSO != null)
+            {
+                CoinInventorySystem.Instance.AddCoin(coinSO, amount);
+                
+                // ⭐ Cập nhật thẳng vào database
+                StartCoroutine(SaveCoinToDatabase(coinName, amount));
+            }
+            else
+            {
+                Debug.LogWarning($"⚠️ Could not find CoinSO for: {coinName}");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Save picked up coin to database immediately
+    /// </summary>
+    private IEnumerator SaveCoinToDatabase(string coinName, int amount)
+    {
+        if (DatabaseCoinLoader.Instance == null)
+        {
+            Debug.LogWarning("⚠️ DatabaseCoinLoader not found - coin not saved to database");
+            yield break;
+        }
+
+        // Get coin_id from database
+        int coinId = DatabaseCoinLoader.Instance.GetCoinIdByName(coinName);
+        if (coinId <= 0)
+        {
+            Debug.LogError($"❌ Coin ID not found for: {coinName}");
+            yield break;
+        }
+
+        // Get player ID (default: 1, hoặc lấy từ PlayerController nếu có)
+        int playerId = 1; // TODO: Get from PlayerController or GameManager
+
+        // Call API to add coins
+        string apiUrl = "http://127.0.0.1:5002/player_coins/add";
+        
+        WWWForm form = new WWWForm();
+        form.AddField("player_id", playerId);
+        form.AddField("coin_id", coinId);
+        form.AddField("amount", amount);
+
+        using (UnityEngine.Networking.UnityWebRequest req = UnityEngine.Networking.UnityWebRequest.Post(apiUrl, form))
+        {
+            yield return req.SendWebRequest();
+
+            if (req.result == UnityEngine.Networking.UnityWebRequest.Result.Success)
+            {
+                Debug.Log($"💾 Saved to database: {amount}x {coinName} for player {playerId}");
+            }
+            else
+            {
+                Debug.LogError($"❌ Failed to save coin to database: {req.error}");
+            }
+        }
+    }
+    
+    public void SetCurrencyAmount(int amount)
+    {
+        currencyAmount = amount;
+    }
+    
+    public void SetExpAmount(int amount)
+    {
+        expAmount = amount;
+    }
+    
+    private void AddExp(int amount)
+    {
+        if (PlayerLevelSystem.Instance != null)
+        {
+            PlayerLevelSystem.Instance.AddExp(amount);
+            Debug.Log($"💎 Picked up {amount} EXP!");
+        }
+        else
+        {
+            Debug.LogWarning("⚠️ PlayerLevelSystem not found!");
         }
     }
 

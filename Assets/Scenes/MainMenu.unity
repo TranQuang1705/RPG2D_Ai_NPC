@@ -249,8 +249,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Exit
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: f200ee1d7e0e4fb47998d18ab36176a9, type: 2}
-  m_sharedMaterial: {fileID: 6780404067476171405, guid: f200ee1d7e0e4fb47998d18ab36176a9, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 1a80b10c775973942a47628536aa34e7, type: 2}
+  m_sharedMaterial: {fileID: 5053514697667371145, guid: 1a80b10c775973942a47628536aa34e7, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -334,7 +334,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1467281863540911172, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 0.525609
+      value: 0.52515125
       objectReference: {fileID: 0}
     - target: {fileID: 1467281863540911172, guid: eb3825d76efb5be49ad32656769629d3, type: 3}
       propertyPath: m_LocalPosition.y
@@ -805,8 +805,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Play
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: f200ee1d7e0e4fb47998d18ab36176a9, type: 2}
-  m_sharedMaterial: {fileID: 6780404067476171405, guid: f200ee1d7e0e4fb47998d18ab36176a9, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 1a80b10c775973942a47628536aa34e7, type: 2}
+  m_sharedMaterial: {fileID: 5053514697667371145, guid: 1a80b10c775973942a47628536aa34e7, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -1055,10 +1055,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Alex The Wanderer
+  m_text: Shadow of Eclycia
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: f200ee1d7e0e4fb47998d18ab36176a9, type: 2}
-  m_sharedMaterial: {fileID: 6780404067476171405, guid: f200ee1d7e0e4fb47998d18ab36176a9, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 1a80b10c775973942a47628536aa34e7, type: 2}
+  m_sharedMaterial: {fileID: 5053514697667371145, guid: 1a80b10c775973942a47628536aa34e7, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []

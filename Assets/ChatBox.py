@@ -4,6 +4,7 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 import asyncio, uuid, os, edge_tts, re, ssl, aiohttp
 import requests, os, uuid, asyncio, threading, edge_tts, re
+from gtts import gTTS  # ← THÊM GOOGLE TTS
 from flask_cors import CORS
 from sentence_transformers import SentenceTransformer, util
 from collections import deque
@@ -59,6 +60,8 @@ system_prompt = (
     "You are picking wildflowers in a sunny meadow, wearing a white dress. "
     "You are kind, soft-spoken, sometimes shy, but warm-hearted. "
     "Always reply as Snow, briefly and naturally.\n"
+    "IMPORTANT: You MUST respond ONLY in English. Never use Vietnamese or any other language. "
+    "All your responses must be in clear.\n"
     "Never include code blocks, JSON, or technical details. Speak like a person.\n"
 )
 
@@ -149,21 +152,25 @@ def clean_for_tts(text: str) -> str:
 
 #Tạo tệp âm thanh TTS không đồng bộ sử dụng edge-tts và aiohttp để xử lý các yêu cầu HTTP một cách an toàn.
 async def synth_to_file_async(text: str, out_path: str):
-    sslcontext = ssl.create_default_context()
-    sslcontext.check_hostname = False
-    sslcontext.verify_mode = ssl.CERT_NONE
-
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=sslcontext)) as session:
-        #Hàm của thư viện edge-tts, dùng để gửi text đến máy chủ Microsoft Edge TTS
+    # Không cần clean_for_tts nữa vì đã clean ở tts_file()
+    print(f"[TTS] 📡 Connecting to Microsoft TTS with voice: {VOICE}")
+    
+    try:
+        # Không cần custom SSL context - để edge-tts tự xử lý
         communicator = edge_tts.Communicate(
-            clean_for_tts(text),
+            text,  # Text đã được clean rồi
             voice=VOICE,
             rate=normalize_rate(RATE),
             pitch=normalize_pitch(PITCH),
         )
-        #chỉnh sửa tham số voice, rate, pitch theo cấu hình đã định nghĩa ở trên
+        
+        print(f"[TTS] ⏳ Downloading audio from Microsoft...")
         await communicator.save(out_path)
-        #lưu tệp âm thanh TTS vào đường dẫn out_path
+        print(f"[TTS] ✅ Audio saved successfully")
+        
+    except Exception as e:
+        print(f"[TTS ASYNC ERROR] {type(e).__name__}: {e}")
+        raise
 
 
 def synth_to_file_blocking(text: str, out_path: str):
@@ -171,18 +178,56 @@ def synth_to_file_blocking(text: str, out_path: str):
 
 
 
+def tts_file_gtts(text: str, out_path: str):
+    """Fallback TTS using Google TTS"""
+    try:
+        print(f"[TTS] 🔄 Using Google TTS (fallback)...")
+        tts = gTTS(text=text, lang='en', slow=False)
+        tts.save(out_path)
+        
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            print(f"[TTS] ✅ Google TTS SUCCESS: {out_path} ({os.path.getsize(out_path)} bytes)")
+            return True
+        else:
+            print(f"[TTS] ❌ Google TTS failed to create file")
+            return False
+    except Exception as e:
+        print(f"[TTS] ❌ Google TTS ERROR: {e}")
+        return False
+
 def tts_file(text: str):
     os.makedirs("tmp", exist_ok=True)
     #Tạo thư mục tạm thời "tmp" nếu chưa tồn tại
-    fname = f"tmp_{uuid.uuid4().hex}.mp3"
+    fname = f"tmp_{uuid.uuid4().hex}.mp3"  # ← MP3 cho cả Edge và gTTS
     #Tạo tên tệp duy nhất sử dụng UUID để tránh trùng lặp
     out_path = os.path.join("tmp", fname)
+    
+    # Clean text trước khi gửi
+    cleaned_text = clean_for_tts(text)
+    print(f"[TTS] 🔊 Original text: {text[:100]}")
+    print(f"[TTS] 🧹 Cleaned text: {cleaned_text[:100]}")
+    
+    # TRY 1: Edge TTS (giọng tốt hơn nhưng hay bị lỗi)
+    edge_success = False
     try:
-        asyncio.run(synth_to_file_async(text, out_path))
-        #Gọi hàm async để thực sự chuyển text → file MP3.
-        print(f"[TTS] ✅ Saved MP3: {out_path}")
+        print(f"[TTS] 🎤 Trying Edge TTS first...")
+        asyncio.run(synth_to_file_async(cleaned_text, out_path))
+        
+        # Kiểm tra file có tồn tại và có kích thước không
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            file_size = os.path.getsize(out_path)
+            print(f"[TTS] ✅ Edge TTS SUCCESS: {out_path} ({file_size} bytes)")
+            edge_success = True
+        else:
+            print(f"[TTS] ⚠️ Edge TTS created empty file")
     except Exception as e:
-        print(f"[TTS ERROR] {e}")
+        print(f"[TTS] ⚠️ Edge TTS failed: {e}")
+    
+    # TRY 2: Google TTS (fallback nếu Edge fail)
+    if not edge_success:
+        print(f"[TTS] 🔄 Edge TTS failed, using Google TTS fallback...")
+        tts_file_gtts(cleaned_text, out_path)
+    
     return out_path, fname
 
 
@@ -195,7 +240,10 @@ def serve_audio(name):
     #Ghép chuỗi
     if not os.path.exists(path):
         return abort(404, description=f"Audio file {name} not found")
-    resp = make_response(send_from_directory("tmp", name, mimetype="audio/mpeg"))
+    
+    # Tự động detect MIME type dựa vào extension
+    mimetype = "audio/wav" if name.endswith(".wav") else "audio/mpeg"
+    resp = make_response(send_from_directory("tmp", name, mimetype=mimetype))
     #Gửi tệp âm thanh với kiểu MIME audio/mpeg
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
@@ -261,9 +309,10 @@ def chat():
     contextual_prompt = system_prompt
     if quest_context:
         contextual_prompt += f"\n\n[QUEST INFO]\n{quest_context}\n"
-        contextual_prompt += "When player asks about quests or help, naturally explain this quest in your own words. "
+        contextual_prompt += "When player asks about quests or help, naturally explain this quest in your own words IN ENGLISH. "
         contextual_prompt += "Make it sound like you really need help, not like you're reading from a quest log. "
-        contextual_prompt += "After explaining, ask if they would be willing to help you."
+        contextual_prompt += "After explaining, ask if they would be willing to help you. "
+        contextual_prompt += "Remember: Respond ONLY in English, never in Vietnamese or other languages."
     if npc_context:
         contextual_prompt += f"\n\n[YOUR CURRENT STATUS]\n{npc_context}"
     

@@ -14,12 +14,23 @@ public class NpcChatSpeaker : MonoBehaviour
     public AudioSource npcAudio;
     public bool interruptPrevious = true;
 
+    [Header("Typing Animation")]
+    [Tooltip("Enable typing animation effect")]
+    public bool useTypingAnimation = true;
+    [Tooltip("Characters per second for typing effect (auto-synced with audio if available)")]
+    public float typingSpeed = 30f;
+    
+    [Header("Text Overflow")]
+    [Tooltip("Auto clear text when it overflows the box")]
+    public bool autoHandleOverflow = true;
+
     public bool IsSpeaking => npcAudio && npcAudio.isPlaying;
     public System.Action OnSpeakStart;
     public System.Action OnSpeakEnd;
 
     private int latestResponseId = 0;
     private Coroutine currentAudioCo;
+    private Coroutine currentTypingCo;
 
     [SerializeField] private string sessionId; 
 
@@ -61,7 +72,6 @@ public class NpcChatSpeaker : MonoBehaviour
         if (!string.IsNullOrEmpty(questContext))
         {
             payload += ",\"quest_context\":\"" + EscapeJson(questContext) + "\"";
-            Debug.Log($"📜 NpcChatSpeaker: Sending quest_context ({questContext.Length} chars)");
         }
         
         if (!string.IsNullOrEmpty(npcContext))
@@ -82,7 +92,6 @@ public class NpcChatSpeaker : MonoBehaviour
 
             if (req.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("[NPC] Chat request failed: " + req.error);
                 OnSpeakEnd?.Invoke();
                 yield break;
             }
@@ -91,22 +100,16 @@ public class NpcChatSpeaker : MonoBehaviour
             var br = JsonUtility.FromJson<BotReply>(json);
             if (br == null)
             {
-                Debug.LogError("[NPC] Invalid JSON response!");
                 OnSpeakEnd?.Invoke();
                 yield break;
             }
 
-            // 💬 Hiển thị câu trả lời
-            if (!string.IsNullOrEmpty(br.reply))
-            {
-                if (subtitleTMP) subtitleTMP.text = $"Snow: {br.reply}";
-                Debug.Log($"💬 NPC Reply: {br.reply}");
-            }
+            // 💬 Store reply text for typing animation (will be displayed with audio)
+            string replyText = br.reply;
 
             // ⚙️ NEW: Nếu Flask trả về action (NAVIGATE, COMBAT, SHOP...)
             if (!string.IsNullOrEmpty(br.action))
             {
-                Debug.Log($"🧭 Server action received: {br.action}");
                 
                 // Phân loại action: NPC-specific vs Global
                 bool isNpcAction = IsNpcSpecificAction(br.action);
@@ -114,7 +117,6 @@ public class NpcChatSpeaker : MonoBehaviour
                 if (isNpcAction && npcComponent != null)
                 {
                     // Actions dành cho NPC cụ thể (GATHER_FLOWER, ASK_FOR_QUEST, etc.)
-                    Debug.Log($"🎮 Calling NPC.HandleChatbotAction() for action: {br.action}");
                     var parameters = new System.Collections.Generic.Dictionary<string, object>();
                     
                     // Convert ResponseParams to dictionary if available
@@ -138,7 +140,6 @@ public class NpcChatSpeaker : MonoBehaviour
                     if (navHandler == null) navHandler = FindObjectOfType<NavActionHandler>();
                     if (navHandler != null)
                     {
-                        Debug.Log($"🧭 Calling NavActionHandler for global action: {br.action}");
                         navHandler.HandleServerAction(new ServerResponse
                         {
                             action = br.action,
@@ -167,25 +168,44 @@ public class NpcChatSpeaker : MonoBehaviour
                     if (npcAudio && npcAudio.isPlaying) npcAudio.Stop();
                     OnSpeakEnd?.Invoke();
                 }
+                
+                // Stop any existing typing animation
+                if (currentTypingCo != null)
+                {
+                    StopCoroutine(currentTypingCo);
+                    currentTypingCo = null;
+                }
 
                 string absolute = EnsureAbsoluteUrl(br.audio_url);
-                currentAudioCo = StartCoroutine(CoDownloadAndPlay(absolute, thisId));
+                currentAudioCo = StartCoroutine(CoDownloadAndPlay(absolute, thisId, replyText));
             }
             else
             {
+                // No audio - just show text immediately without animation
+                if (!string.IsNullOrEmpty(replyText) && subtitleTMP != null)
+                {
+                    string emotion;
+                    string cleanText = ExtractEmotionMarkers(replyText, out emotion);
+                    subtitleTMP.text = $"{cleanText}";
+                }
                 OnSpeakEnd?.Invoke();
             }
         }
     }
 
-    private IEnumerator CoDownloadAndPlay(string url, int id)
+    private IEnumerator CoDownloadAndPlay(string url, int id, string replyText)
     {
         string finalUrl = url + ((url.Contains("?") ? "&" : "?") + "t=" + System.DateTime.UtcNow.Ticks);
         string urlWithoutQuery = url.Split('?')[0];
 
         using (UnityWebRequest uwr = new UnityWebRequest(finalUrl, UnityWebRequest.kHttpVerbGET))
         {
-            uwr.downloadHandler = new DownloadHandlerAudioClip(urlWithoutQuery, AudioType.MPEG);
+            // Auto-detect AudioType từ URL extension
+            AudioType audioType = AudioType.MPEG; // MP3 format (works with both Edge & Google TTS)
+            if (urlWithoutQuery.EndsWith(".wav")) audioType = AudioType.WAV;
+            else if (urlWithoutQuery.EndsWith(".ogg")) audioType = AudioType.OGGVORBIS;
+            
+            uwr.downloadHandler = new DownloadHandlerAudioClip(urlWithoutQuery, audioType);
             uwr.SetRequestHeader("Cache-Control", "no-cache, no-store, must-revalidate");
             uwr.SetRequestHeader("Pragma", "no-cache");
 
@@ -194,7 +214,6 @@ public class NpcChatSpeaker : MonoBehaviour
             if (id != latestResponseId) yield break;
             if (uwr.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError($"[NPC] Audio download failed: {uwr.error}");
                 OnSpeakEnd?.Invoke();
                 yield break;
             }
@@ -202,7 +221,6 @@ public class NpcChatSpeaker : MonoBehaviour
             var clip = DownloadHandlerAudioClip.GetContent(uwr);
             if (!clip || !npcAudio)
             {
-                Debug.LogWarning("[NPC] No valid audio clip or AudioSource missing.");
                 OnSpeakEnd?.Invoke();
                 yield break;
             }
@@ -214,6 +232,13 @@ public class NpcChatSpeaker : MonoBehaviour
             npcAudio.loop = false;
 
             OnSpeakStart?.Invoke();
+            
+            // Start typing animation synchronized with audio
+            if (!string.IsNullOrEmpty(replyText))
+            {
+                currentTypingCo = StartCoroutine(TypeText(replyText, clip.length));
+            }
+            
             npcAudio.Play();
 
             try
@@ -248,6 +273,108 @@ public class NpcChatSpeaker : MonoBehaviour
     {
         return s.Replace("\\", "\\\\").Replace("\"", "\\\"")
                 .Replace("\n", "\\n").Replace("\r", "\\r");
+    }
+
+    /// <summary>
+    /// Extract emotion markers from text (e.g., **happy**, **nervous**)
+    /// Also removes any content between * marks (actions/emotions)
+    /// Returns the emotion found (or null) and the clean text without markers
+    /// </summary>
+    private string ExtractEmotionMarkers(string text, out string emotion)
+    {
+        emotion = null;
+        if (string.IsNullOrEmpty(text)) return text;
+
+        // Find emotion markers like **happy**, **nervous**, etc.
+        var match = System.Text.RegularExpressions.Regex.Match(text, @"\*\*(\w+)\*\*");
+        if (match.Success)
+        {
+            emotion = match.Groups[1].Value;
+        }
+
+        // Remove all content between ** markers (emotions)
+        string cleanText = System.Text.RegularExpressions.Regex.Replace(text, @"\*\*[^*]+\*\*", "");
+        
+        // Remove all content between single * markers (actions/descriptions)
+        cleanText = System.Text.RegularExpressions.Regex.Replace(cleanText, @"\*[^*]+\*", "");
+        
+        // Clean up extra spaces and trim
+        cleanText = System.Text.RegularExpressions.Regex.Replace(cleanText, @"\s+", " ");
+        return cleanText.Trim();
+    }
+
+    /// <summary>
+    /// Display text with typing animation effect synchronized with audio length
+    /// </summary>
+    private IEnumerator TypeText(string fullText, float audioDuration)
+    {
+        if (subtitleTMP == null) yield break;
+
+        // Extract and remove emotion markers
+        string emotion;
+        string displayText = ExtractEmotionMarkers(fullText, out emotion);
+        
+        if (!string.IsNullOrEmpty(emotion))
+        {
+            Debug.Log($"[NPC Emotion] Detected: {emotion} (will be used for avatar in future)");
+            // TODO: In future, trigger emotion avatar based on 'emotion' variable
+        }
+
+        // Add NPC name prefix
+        displayText = $"{displayText}";
+
+        if (!useTypingAnimation || audioDuration <= 0)
+        {
+            // No animation - show all text immediately
+            subtitleTMP.text = displayText;
+            yield break;
+        }
+
+        // Calculate typing speed based on audio duration for perfect sync
+        float charsPerSecond = displayText.Length / audioDuration;
+        
+        // Clamp to reasonable range (not too fast or slow)
+        charsPerSecond = Mathf.Clamp(charsPerSecond, 10f, 50f);
+
+        subtitleTMP.text = "";
+        int startIndex = 0; // Track where we start typing from after overflow
+        
+        for (int i = 1; i <= displayText.Length; i++)
+        {
+            // Get substring from current start index
+            int length = i - startIndex;
+            if (length > displayText.Length - startIndex)
+                length = displayText.Length - startIndex;
+                
+            string currentText = displayText.Substring(startIndex, length);
+            subtitleTMP.text = currentText;
+            
+            // Check for overflow after updating text (but not on the last character)
+            if (autoHandleOverflow && i < displayText.Length && IsTextOverflowing())
+            {
+                Debug.Log($"[NPC Text] Overflow detected at position {i}! Clearing text and continuing from here.");
+                // Clear the text and restart from current position
+                subtitleTMP.text = "";
+                startIndex = i; // Next iteration will start from here
+            }
+            
+            // Wait based on typing speed
+            yield return new WaitForSeconds(1f / charsPerSecond);
+        }
+    }
+
+    /// <summary>
+    /// Check if TextMeshPro text is overflowing the bounds
+    /// </summary>
+    private bool IsTextOverflowing()
+    {
+        if (subtitleTMP == null) return false;
+
+        // Force TextMeshPro to update its mesh info
+        subtitleTMP.ForceMeshUpdate();
+
+        // Check if text is being truncated (overflow)
+        return subtitleTMP.isTextOverflowing;
     }
     
     /// <summary>

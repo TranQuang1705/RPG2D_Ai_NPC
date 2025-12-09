@@ -115,9 +115,6 @@ public class MicNpcBridge : MonoBehaviour
     
     private IEnumerator SyncNpcReplyToMic()
     {
-        Debug.Log($"🔄 MicNpcBridge: Starting SyncNpcReplyToMic coroutine");
-        
-        // Đợi một chút để NPC reply được set vào subtitleTMP
         yield return new WaitForSeconds(0.1f);
         
         int updateCount = 0;
@@ -133,14 +130,12 @@ public class MicNpcBridge : MonoBehaviour
                     _lastNpcReply = npcText;
                     if (mic) mic.UpdateDisplayText(npcText);
                     updateCount++;
-                    Debug.Log($"📝 MicNpcBridge: Updated display text (update #{updateCount}): {npcText.Substring(0, System.Math.Min(50, npcText.Length))}...");
                 }
             }
             
             yield return new WaitForSeconds(0.1f);
         }
         
-        Debug.Log($"✅ MicNpcBridge: SyncNpcReplyToMic finished. Total updates: {updateCount}");
         _syncCoroutine = null;
     }
 
@@ -164,16 +159,12 @@ public class MicNpcBridge : MonoBehaviour
 
         _lastSend = Time.unscaledTime;
         
-        // ✅ Use NPC.Say() to include quest context instead of direct SpeakFromText()
         if (npcComponent != null)
         {
-            Debug.Log($"📤 MicNpcBridge: Sending to NPC.Say(): \"{t}\"");
             npcComponent.Say(t);
         }
         else
         {
-            // Fallback to direct call if NPC component not assigned
-            Debug.LogWarning($"⚠️ MicNpcBridge: npcComponent not assigned, using fallback SpeakFromText()");
             npcSpeaker.SpeakFromText(t);
         }
     }

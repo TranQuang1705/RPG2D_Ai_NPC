@@ -30,7 +30,6 @@ public class GameManager : MonoBehaviour
         {
             GameObject timeManagerObj = new GameObject("TimeManager");
             timeManager = timeManagerObj.AddComponent<TimeManager>();
-            Debug.Log("Đã tạo TimeManager mới");
         }
     }
 

@@ -49,6 +49,12 @@ MonoBehaviour:
     density: 0.003
   - prefab: {fileID: 3740587623619406222, guid: 474a94ce785c9744fbc94e65a8351e5b, type: 3}
     density: 0.02
+  - prefab: {fileID: 2502511578378756785, guid: 22f549c090116fe4c8ec999f684a35f3, type: 3}
+    density: 0.001
+  - prefab: {fileID: 6936439163177890178, guid: 7654fee63e1bd374dba7a06410a6541a, type: 3}
+    density: 0.001
+  - prefab: {fileID: 1692051926207648264, guid: 6601be9763a232b49b15d661f51f248e, type: 3}
+    density: 0.001
   cliffTiles:
   - tile: {fileID: 11400000, guid: 8446a8313ca99cf4cafe23102ab9a170, type: 2}
     weight: 0.2
@@ -60,3 +66,14 @@ MonoBehaviour:
   waterThreshold: 0.28
   dirtThreshold: 0.45
   decorChance: 0.08
+  enemySpawns:
+  - enemyPrefab: {fileID: 1606797619815570155, guid: a2c4af931d7b79147b8706a74e5a87ee, type: 3}
+    spawnWeight: 1
+    minCount: 0
+    maxCount: 6
+  spawnPointCount: 10
+  minSpawnPointDistance: 15
+  safeZoneRadius: 20
+  enableRespawn: 1
+  respawnDelay: 60
+  maxRespawnCount: -1

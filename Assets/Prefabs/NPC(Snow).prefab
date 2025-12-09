@@ -265,6 +265,7 @@ GameObject:
   - component: {fileID: 4970736327909532675}
   - component: {fileID: 2407171236521280180}
   - component: {fileID: 8814369004503012317}
+  - component: {fileID: 2098500388720077009}
   - component: {fileID: 2778463337959605736}
   - component: {fileID: 3843785714089111729}
   m_Layer: 6
@@ -478,6 +479,9 @@ MonoBehaviour:
   subtitleTMP: {fileID: 0}
   npcAudio: {fileID: 2407171236521280180}
   interruptPrevious: 1
+  useTypingAnimation: 1
+  typingSpeed: 30
+  autoHandleOverflow: 1
   sessionId: 
 --- !u!82 &2407171236521280180
 AudioSource:
@@ -607,6 +611,28 @@ MonoBehaviour:
   useRealTimeManager: 1
   flowerHuntingStartHour: 15
   flowerHuntingEndHour: 18
+  isTrader: 0
+  marketOpenHour: 8
+  marketCloseHour: 12
+  marketStallLocation: {fileID: 0}
+--- !u!114 &2098500388720077009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9167739208179350021}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4471def327c6c2c42a82b0ad645c5d1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  npcId: 1
+  questAvailableIndicator: {fileID: 3081883762451398018}
+  questCompleteIndicator: {fileID: 0}
+  indicatorOffset: 1.5
+  canGiveRandomQuests: 1
+  availableQuestPool: 0100000002000000
 --- !u!50 &2778463337959605736
 Rigidbody2D:
   serializedVersion: 4

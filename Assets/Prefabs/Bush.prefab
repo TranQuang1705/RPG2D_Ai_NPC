@@ -151,6 +151,37 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7008845b0c7200149a094be45a420787, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  goldCoin: {fileID: 1030432787938409427, guid: 8edca1cc790d39c42a9abedafd415c60, type: 3}
+  obalCoin: {fileID: 1030432787938409427, guid: e30e04cc8756a404a8d253c1f2e1f05e, type: 3}
+  varosCoin: {fileID: 6144491412551200313, guid: d7548dbbbae5ac441be758f275f8c78d, type: 3}
+  sylvCoin: {fileID: 6144491412551200313, guid: e35c5de663b49b64fab2afcca5362cf0, type: 3}
+  feronCoin: {fileID: 6144491412551200313, guid: 90be57f45b4f5a44fb399d4fc12bfb75, type: 3}
+  astrylCoin: {fileID: 6144491412551200313, guid: 7149454089540c24ca3ad08e0e60d6aa, type: 3}
+  aurumCoin: {fileID: 1030432787938409427, guid: bfd02074f7ef20144b8a10eccdb03883, type: 3}
+  emberExp: {fileID: 3780589458902356385, guid: ff330393b43b31c4faa9084684439b71, type: 3}
+  groveExp: {fileID: 838370329832767609, guid: bb7bd6b06414e6441b3f598d97709bae, type: 3}
+  tideExp: {fileID: 6909887488275160125, guid: 8ed8860c63808a541b51d850e76acf33, type: 3}
+  voidExp: {fileID: 4399304020581421326, guid: ee6443c6d5cd6d2438fcadc5ac340ebc, type: 3}
+  radiantExp: {fileID: 8849366022216889255, guid: 574b61d77942fb84ebd836b11afd27ec, type: 3}
+  bloodmoonExp: {fileID: 1953212583589150921, guid: f3593375990931b4997f7b06a090a805, type: 3}
   heath: {fileID: 1030432787938409427, guid: b7383c4140fc31b428ec4c17461ed340, type: 3}
-  stamina: {fileID: 1030432787938409427, guid: afad839e60fd36d43bc0cf751392bd09, type: 3}
+  enableCurrencyDrop: 0
+  minObalValue: 1
+  maxObalValue: 5
+  allowAurumDrop: 0
+  allowFeronDrop: 1
+  useAstrylInsteadOfFeron: 0
+  allowSylvDrop: 1
+  allowVarosDrop: 1
+  allowObalDrop: 1
+  isInWizardBiome: 0
+  wizardBiomeTag: WizardBiome
+  enableExpDrop: 1
+  minExpValue: 1
+  maxExpValue: 100
+  allowBloodmoonDrop: 0
+  allowRadiantDrop: 0
+  allowVoidDrop: 0
+  allowTideDrop: 1
+  allowGroveDrop: 1
+  allowEmberDrop: 1
+  enableHealthDrop: 1

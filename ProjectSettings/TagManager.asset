@@ -9,6 +9,10 @@ TagManager:
   - Flower
   - VillageCenter
   - NPC
+  - MarketStall
+  - Camp
+  - StandPoint
+  - TradeUI
   layers:
   - Default
   - TransparentFX

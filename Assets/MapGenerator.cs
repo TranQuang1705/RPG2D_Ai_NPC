@@ -1981,7 +1981,6 @@ public class MapGenerator : MonoBehaviour
 
         if (path != null && path.Count > 0)
         {
-            Debug.Log($"✨ Player hỏi đường → Spawn đom đóm dẫn tới {target}");
             StartCoroutine(AnimateFirefly(path));
         }
         else
@@ -2196,7 +2195,6 @@ public class AStarPathfinder
         if (!IsInBounds(start, width, height) || !IsInBounds(end, width, height) ||
             !grid[start.x, start.y] || !grid[end.x, end.y])
         {
-            Debug.LogWarning("⚠️ A* start hoặc end không hợp lệ!");
             return new List<Vector2Int>();
         }
 

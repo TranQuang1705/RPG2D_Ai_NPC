@@ -49,6 +49,14 @@ public class ActiveInventory : Singleton<ActiveInventory>
 
     private void ChangeActiveWeapon()
     {
+        // ✅ Check if ActiveWeapon Instance exists
+        if (ActiveWeapon.Instance == null)
+        {
+            Debug.LogError("❌ ActiveWeapon.Instance is null! Cannot change weapon.");
+            return;
+        }
+        
+        // Destroy current weapon if exists
         if (ActiveWeapon.Instance.CurrentActiveWeapon != null) 
         {
             Destroy(ActiveWeapon.Instance.CurrentActiveWeapon.gameObject);
@@ -57,22 +65,23 @@ public class ActiveInventory : Singleton<ActiveInventory>
         Transform childTransform = transform.GetChild(activeSlotIndexNum);
         InventorySlot inventorySlot = childTransform.GetComponent<InventorySlot>();
         WeaponInfo weaponInfo = inventorySlot.GetWeaponInfo();
-        GameObject weaponToSpawn = weaponInfo.weaponPrefab;
 
         if (weaponInfo == null)
         {
             ActiveWeapon.Instance.WeaponNull();
             return;
         }
+        
         if (transform.GetChild(activeSlotIndexNum).GetComponentInChildren<InventorySlot>().GetWeaponInfo() == null)
         {
             ActiveWeapon.Instance.WeaponNull();
             return;
         }
-        GameObject weaponToSpam = transform.GetChild(activeSlotIndexNum).
+        
+        GameObject weaponToSpawn = transform.GetChild(activeSlotIndexNum).
         GetComponentInChildren<InventorySlot>().GetWeaponInfo().weaponPrefab;
 
-        GameObject newWeapon = Instantiate(weaponToSpam, ActiveWeapon.Instance.transform);
+        GameObject newWeapon = Instantiate(weaponToSpawn, ActiveWeapon.Instance.transform);
         
        // ActiveWeapon.Instance.transform.rotation = Quaternion.Euler(0f, 0f, 0f);
        // newWeapon.transform.parent = ActiveWeapon.Instance.transform;   

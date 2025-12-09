@@ -29,7 +29,6 @@ public class FlowerManager : MonoBehaviour
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
 
-        Debug.Log("🌸 FlowerManager initialized");
         StartCoroutine(InitializeFlowerZonesCo());
     }
 

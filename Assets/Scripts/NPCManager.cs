@@ -87,34 +87,34 @@ public class NPCManager : MonoBehaviour
     // === NPC SPAWNING ===
 
     void LinkExistingNPCs()
-{
-    // Tìm tất cả NPC hiện có trong Scene
-    NPCRoutineAI[] npcs = FindObjectsOfType<NPCRoutineAI>();
-
-    if (npcs.Length == 0)
     {
-        Debug.LogWarning("⚠️ Không tìm thấy NPC nào trong scene!");
-        return;
+        // Tìm tất cả NPC hiện có trong Scene
+        NPCRoutineAI[] npcs = FindObjectsOfType<NPCRoutineAI>();
+
+        if (npcs.Length == 0)
+        {
+            Debug.LogWarning("⚠️ Không tìm thấy NPC nào trong scene!");
+            return;
+        }
+
+        foreach (var npc in npcs)
+        {
+            if (npc == null) continue;
+
+            // Gán các giá trị cần thiết nếu chưa có
+            if (npc.villageCenter == null) npc.villageCenter = villageCenter;
+            if (npc.homeLocation == null) npc.homeLocation = campLocation;
+            if (npc.flowerPrefabs == null || npc.flowerPrefabs.Count == 0)
+                npc.flowerPrefabs = flowerPrefabs;
+
+            // Đăng ký NPC vào danh sách quản lý
+            activeNPCs.Add(npc);
+        }
+
+        Debug.Log($"✅ Đã liên kết {activeNPCs.Count} NPC có sẵn trong Scene.");
     }
 
-    foreach (var npc in npcs)
-    {
-        if (npc == null) continue;
 
-        // Gán các giá trị cần thiết nếu chưa có
-        if (npc.villageCenter == null) npc.villageCenter = villageCenter;
-        if (npc.homeLocation == null) npc.homeLocation = campLocation;
-        if (npc.flowerPrefabs == null || npc.flowerPrefabs.Count == 0)
-            npc.flowerPrefabs = flowerPrefabs;
-
-        // Đăng ký NPC vào danh sách quản lý
-        activeNPCs.Add(npc);
-    }
-
-    Debug.Log($"✅ Đã liên kết {activeNPCs.Count} NPC có sẵn trong Scene.");
-}
-
-    
 
     Vector3 GetRandomSpawnPosition()
     {
@@ -160,7 +160,12 @@ public class NPCManager : MonoBehaviour
         Transform player = GameObject.FindWithTag("Player")?.transform;
         if (player != null)
         {
-            nearestNPC.StartCoroutine(nearestNPC.MoveToPosition(player.position));
+            bool reachPlayer = false;
+            nearestNPC.StartCoroutine(nearestNPC.MoveToPosition(
+                player.position,
+                r => reachPlayer = r
+            ));
+
         }
     }
 
@@ -177,7 +182,12 @@ public class NPCManager : MonoBehaviour
                 if (helper != null)
                 {
                     Debug.Log("🌸 NPC đang dẫn bạn đến khu vực có hoa...");
-                    helper.StartCoroutine(helper.MoveToPosition(nearestFlowerPos));
+                    bool reachFlower = false;
+                    helper.StartCoroutine(helper.MoveToPosition(
+                        nearestFlowerPos,
+                        r => reachFlower = r
+                    ));
+
                 }
             }
         }
