@@ -302,7 +302,6 @@ public class MarketSellTrigger : MonoBehaviour
         // Check if it's the player
         if (!IsPlayer(other.gameObject))
         {
-            Debug.Log($"❌ [MarketSellTrigger] {other.name} is not player, ignoring exit");
             return;
         }
 
@@ -319,34 +318,24 @@ public class MarketSellTrigger : MonoBehaviour
         // Close Trade UI
         CloseTradeUI();
     }
-
-    /// <summary>
-    /// Check if GameObject is the player
-    /// </summary>
     bool IsPlayer(GameObject obj)
     {
-        // Method 1: Check tag
         if (obj.CompareTag("Player"))
             return true;
 
-        // Method 2: Check for PlayerController component
         if (obj.GetComponent<PlayerController>() != null)
             return true;
 
-        // Method 3: Check for PlayerHealth component
         if (obj.GetComponent<PlayerHealth>() != null)
             return true;
 
-        // Method 4: Check name
         if (obj.name.ToLower().Contains("player"))
             return true;
 
         return false;
     }
 
-    /// <summary>
-    /// Open Trade UI Panel
-    /// </summary>
+
     public void OpenTradeUI()
     {
         if (tradePanelUI == null)
@@ -394,15 +383,11 @@ public class MarketSellTrigger : MonoBehaviour
         }
         else
         {
-            // Draw default interaction distance
             Gizmos.color = Color.green;
             Gizmos.DrawWireSphere(transform.position, interactionDistance);
         }
     }
 
-    /// <summary>
-    /// Get full hierarchy path of GameObject
-    /// </summary>
     string GetGameObjectPath(GameObject obj)
     {
         if (obj == null) return "NULL";
@@ -418,4 +403,6 @@ public class MarketSellTrigger : MonoBehaviour
         
         return path;
     }
+
+
 }

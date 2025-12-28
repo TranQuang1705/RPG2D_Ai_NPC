@@ -72,12 +72,9 @@ public class FreeSpeechToTextToggle : MonoBehaviour
 
         isListening = true;
         if (buttonLabel) buttonLabel.text = "Stop";
-        
-        // ✅ KHÔNG hiển thị "Listening..." - giữ text hiện tại (NPC reply)
-        // Text chỉ thay đổi khi người chơi thực sự nói (DictationHypothesis)
+
     }
 
-    // ĐÃ CHUYỂN THÀNH public để Bridge gọi
     public void StopListening()
     {
         if (dictationRecognizer.Status == SpeechSystemStatus.Running)
@@ -85,13 +82,9 @@ public class FreeSpeechToTextToggle : MonoBehaviour
 
         isListening = false;
         if (buttonLabel) buttonLabel.text = "Start";
-        // Không hiển thị "Stopped" nữa, giữ text hiện tại hoặc hiển thị "Listening..."
-        // outputTMP text sẽ được update bởi NPC reply
+
     }
     
-    /// <summary>
-    /// Public method để NPC hoặc Bridge có thể update text hiển thị
-    /// </summary>
     public void UpdateDisplayText(string text)
     {
         if (outputTMP) outputTMP.text = text;
@@ -107,7 +100,7 @@ public class FreeSpeechToTextToggle : MonoBehaviour
         }
     }
 
-    // ====== Gửi text tới Flask server (nếu forwardToBot = true) ======
+    // ====== Gửi text tới Flask server  ======
     [System.Serializable] public class ChatPayload { public string text; }
     [System.Serializable] public class BotReply { public string reply; public string audio_url; public string error; }
     [System.Serializable] public class Message { public string role; public string content; }

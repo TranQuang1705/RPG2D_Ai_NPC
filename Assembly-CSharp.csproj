@@ -68,6 +68,7 @@
     <Compile Include="Assets\PlayerLevelSystem.cs" />
     <Compile Include="Assets\Scripts\Enemies\SpriteFade.cs" />
     <Compile Include="Assets\Scripts\NPC.cs" />
+    <Compile Include="Assets\Scripts\PlayerInputLockManager.cs" />
     <Compile Include="Assets\Scripts\Enemies\Shooter.cs" />
     <Compile Include="Assets\Scripts\SceneChange.cs" />
     <Compile Include="Assets\Scripts\Database\DatabasePlayer.cs" />
@@ -110,6 +111,7 @@
     <Compile Include="Assets\Scripts\Misc\KnockBack.cs" />
     <Compile Include="Assets\Scripts\Misc\WizardCurrencyHelper.cs" />
     <Compile Include="Assets\Scripts\Player\ProjectTile.cs" />
+    <Compile Include="Assets\Scripts\TextInputNpcBridge.cs" />
     <Compile Include="Assets\Scripts\Ui\iWeapon.cs" />
     <Compile Include="Assets\Scripts\Ui\ShopInventoryClickHandler.cs" />
     <Compile Include="Assets\Scripts\Management\SceneEntrance.cs" />
@@ -166,6 +168,7 @@
     <Compile Include="Assets\HealthUIDebug.cs" />
     <Compile Include="Assets\Scripts\Player\Sword.cs" />
     <Compile Include="Assets\MicToNpcReplay.cs" />
+    <Compile Include="Assets\Scripts\Management\EscapeKeyManager.cs" />
     <Compile Include="Assets\GameManager2.cs" />
     <Compile Include="Assets\Scripts\TimeManager.cs" />
     <Compile Include="Assets\POIRegistry.cs" />

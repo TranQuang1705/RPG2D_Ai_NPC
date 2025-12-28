@@ -647,7 +647,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pickPanel: {fileID: 6476098499866009072}
+  borderImage: {fileID: 0}
   autoFindPickPanel: 1
+  autoFindBorder: 1
 --- !u!1 &8234062302647073874
 GameObject:
   m_ObjectHideFlags: 0

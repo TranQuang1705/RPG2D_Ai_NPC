@@ -22,10 +22,16 @@ public class InventoryToggle : MonoBehaviour
 
     void Update()
     {
-        // Nhấn E hoặc Esc để toggle
+        // Don't toggle if typing in input field
+        if (UIManager.Instance != null && UIManager.Instance.IsInputFieldFocused())
+        {
+            return;
+        }
+        
+        // Nhấn E để toggle (ESC handled by EscapeKeyManager)
         bool pressed =
-            (Keyboard.current != null && (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.escapeKey.wasPressedThisFrame))
-            || Input.GetKeyDown(KeyCode.E) || Input.GetKeyDown(KeyCode.Escape);
+            (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            || Input.GetKeyDown(KeyCode.E);
 
         if (pressed) Toggle();
     }

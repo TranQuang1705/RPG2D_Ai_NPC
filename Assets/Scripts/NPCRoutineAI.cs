@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 
 
-// Enum định nghĩa các hoạt động trong ngày
 public enum NPCActivity
 {
     Sleep,              // Ngủ (23:00 - 6:00)
@@ -18,7 +17,6 @@ public enum NPCActivity
     NightRoutine       // Chuẩn bị đi ngủ (22:00 - 23:00)
 }
 
-// Enum định nghĩa trạng thái NPC
 public enum NPCState
 {
     Idle,
@@ -50,57 +48,56 @@ public class NPCRoutineAI : MonoBehaviour
     public NPCState currentState = NPCState.GatheringFlower;
 
     [Header("Home/Village Settings")]
-    public Transform homeLocation;     // Vị trí nhà/CAMP
-    public Transform villageCenter;   // Trung tâm làng để lang thang
-    public float wanderRadius = 10f;    // Bán kính lang thang ở làng
+    public Transform homeLocation;
+    public Transform villageCenter;
+    public float wanderRadius = 10f;
 
     [Header("Flower Gathering")]
     public List<GameObject> flowerPrefabs;
-    public float flowerDetectionRadius = 5f; // ✅ TĂNG từ 3f lên 5f
-    public float gatheringTime = 3f;    // ✅ GIẢM từ 5s xuống 3s cho nhanh hơn
+    public float flowerDetectionRadius = 5f;
+    public float gatheringTime = 3f;
     public LayerMask flowerLayer;
 
     [Header("Movement Settings")]
-    public float moveSpeed = 3.5f; // ✅ TĂNG từ 2f lên 3.5f
+    public float moveSpeed = 3.5f;
     public float detectionRadius = 5f;
     [Header("Movement Direction")]
-    public bool useOnlyHorizontalMovement = false; // Chỉ đi ngang/dọc
+    public bool useOnlyHorizontalMovement = false;
 
     [Header("Time Settings")]
-    public float dayDurationInMinutes = 24f; // 24 phút = 1 ngày game
+    public float dayDurationInMinutes = 24f;
     [Header("References")]
     public MapGenerator mapGenerator;
 
-    // Internal variables
     private List<FlowerObject> availableFlowers = new List<FlowerObject>();
     private FlowerObject currentTargetFlower;
     private Vector3 currentTargetPosition;
     private Animator animator;
-    private float currentGameTime = 6f; // 6:00 AM
-    private bool playerMadeRequest = false; // Player requested flower gathering
+    private float currentGameTime = 6f;
+    private bool playerMadeRequest = false;
 
     [Header("Time-based Flower Hunting")]
-    public bool useRealTimeManager = true; // Sử dụng TimeManager thật
-    public float flowerHuntingStartHour = 14f; // 2:00 PM
-    public float flowerHuntingEndHour = 16f; // 4:00 PM
+    public bool useRealTimeManager = true;
+    public float flowerHuntingStartHour = 14f;
+    public float flowerHuntingEndHour = 16f;
     private Coroutine activityCoroutine;
     private Coroutine gatheringCoroutine;
 
     [Header("Market Trading (for traders)")]
-    public bool isTrader = false; // NPC có vai trò bán hàng không
-    public float marketOpenHour = 8f; // 8:00 AM
-    public float marketCloseHour = 12f; // 12:00 PM
-    public Transform marketStallLocation; // Vị trí sạp hàng
+    public bool isTrader = false;
+    public float marketOpenHour = 8f;
+    public float marketCloseHour = 12f;
+    public Transform marketStallLocation;
 
-    // Pause/resume system
     private bool isPaused = false;
     private NPCActivity pausedActivity;
     private IEnumerator pausedCoroutine;
 
-    // Singleton để quản lý tất cả NPCs
     public static NPCRoutineAI Instance;
     private Coroutine moveRoutine;
     private bool physicsLockedForMarket = false;
+    public bool requestGoHome = false;
+    private int lastCheckedHour = -1;
 
 
 
@@ -121,7 +118,6 @@ public class NPCRoutineAI : MonoBehaviour
 
         animator = GetComponent<Animator>();
 
-        // Đảm bảo sử dụng TimeManager nếu có
         if (TimeManager.Instance != null)
         {
             useRealTimeManager = true;
@@ -133,301 +129,72 @@ public class NPCRoutineAI : MonoBehaviour
         }
 
         InitializeFlowerHunter();
+        StartCoroutine(ScanForFlowers());
     }
 
 
     void LateUpdate()
     {
-        if (currentState != NPCState.MovingToTarget && currentState != NPCState.GatheringFlower)
+        if (TimeManager.Instance == null) return;
+
+        int currentHour = Mathf.FloorToInt(TimeManager.Instance.GetCurrentHour());
+
+        if (currentHour != lastCheckedHour)
+        {
+            Debug.Log($"⏰ {name} adsadadasd: Hour changed to {currentHour}h");
+            lastCheckedHour = currentHour;
+
+            NPCActivity prev = currentActivity;
+            UpdateCurrentActivity();
+            Debug.Log($"⏰ {name} adsadadasd : CurrentActivity updated to {currentActivity}");
+            if (currentActivity != prev)
+                SwitchActivity(currentActivity);
+        }
+
+        if (currentState != NPCState.MovingToTarget &&
+            currentState != NPCState.GatheringFlower)
             ClampToMapBounds();
     }
+
 
     void FixedUpdate()
     {
         return;
     }
 
-
-
-
     void InitializeFlowerHunter()
     {
-        // ✅ REDUCE movement radius to prevent border running
-        wanderRadius = 15f; // Giảm từ 20 xuống 15
-        flowerDetectionRadius = 3f; // Giảm detection radius từ 5 xuống 3
+        wanderRadius = 15f;
+        flowerDetectionRadius = 3f;
 
-        // ✅ Validate Village Center
         if (villageCenter == null)
         {
-            // Debug.LogWarning($"⚠️ Village Center NULL - using current position as center");
             villageCenter = transform;
         }
 
-        // Debug.Log($"📏 Settings: WanderRadius={wanderRadius}, FlowerDetection={flowerDetectionRadius}");
 
-        StartCoroutine(SimpleFlowerHunting());
     }
-
-    // ✅ SIMPLE FLOWER HUNTING - NO TIME ROUTINES!
-    IEnumerator SimpleFlowerHunting()
+    void SwitchActivity(NPCActivity newActivity)
     {
-        Debug.Log($"🌸 {gameObject.name}: SimpleFlowerHunting started — only active from {flowerHuntingStartHour}:00 to {flowerHuntingEndHour}:00 OR when requested");
+        if (activityCoroutine != null)
+            StopCoroutine(activityCoroutine);
 
-        while (true)
-        {
-            // ⏸️ Skip logic khi đang pause (đang nói chuyện với player)
-            if (isPaused)
-            {
-                yield return new WaitForSeconds(0.5f);
-                continue;
-            }
+        Debug.Log($"🔁 {name}: Switching activity → {newActivity}");
 
-            // ✅ PRIORITY: Nếu đang MarketTrading, KHÔNG update activity cho đến khi hết giờ
-            if (currentActivity == NPCActivity.MarketTrading)
-            {
-                // Kiểm tra xem còn trong giờ market không
-                NPCTrader trader = GetComponent<NPCTrader>();
-                if (trader != null && trader.IsMarketHours())
-                {
-                    // Vẫn còn giờ market → tiếp tục ở market
-                    yield return new WaitForSeconds(1f);
-                    continue;
-                }
-                else
-                {
-                    // Hết giờ market → cho phép update activity
-                    Debug.Log($"🏪 {gameObject.name}: Market time ended, switching to other activity");
-                    UpdateCurrentActivity();
-                }
-            }
-            else
-            {
-                // Cập nhật trạng thái hoạt động
-                UpdateCurrentActivity();
-            }
-
-            // ✅ Nếu NPC là trader và đang giờ market, chuyển sang MarketTrading
-            if (currentActivity == NPCActivity.MarketTrading)
-            {
-                Debug.Log($"🏪 {gameObject.name}: Switching to MarketTrading activity!");
-                yield return StartCoroutine(MarketTradingRoutine());
-                yield return new WaitForSeconds(1f);
-                continue; // Restart loop after market closes
-            }
-
-            bool isFlowerTime = IsFlowerHuntingTime();
-            float currentHour = GetCurrentGameTime();
-
-            // ⏰ LOG THỜI GIAN CHI TIẾT
-            Debug.Log($"⏰ {gameObject.name}: Time check - Current: {currentHour:F2}h | useRealTimeManager: {useRealTimeManager} | TimeManager exists: {TimeManager.Instance != null}");
-            if (TimeManager.Instance != null)
-            {
-                Debug.Log($"⏰ {gameObject.name}: TimeManager.GetCurrentHour() = {TimeManager.Instance.GetCurrentHour():F2}h");
-            }
-            Debug.Log($"⏰ {gameObject.name}: IsFlowerTime: {isFlowerTime} | PlayerRequest: {playerMadeRequest} | Range: {flowerHuntingStartHour}-{flowerHuntingEndHour}h");
-
-            // ✅ CHỈ HÁI HOA KHI: trong giờ hái hoa HOẶC có request từ người chơi
-            if (!playerMadeRequest && !isFlowerTime)
-            {
-                Debug.Log($"🔒 {gameObject.name}: No player request and not flower time (current: {currentHour:F1}h, range: {flowerHuntingStartHour}-{flowerHuntingEndHour}h) — standing idle");
-                currentState = NPCState.Idle;
-                yield return StartCoroutine(IdleRoutine());
-
-                // Check again every few seconds
-                yield return new WaitForSeconds(3f);
-                continue; // Restart the loop
-            }
-
-            string reason = playerMadeRequest ? "Player requested" : $"Flower time ({currentHour:F1}h)";
-            Debug.Log($"🌸 {gameObject.name}: {reason} - going to gather flowers!");
-
-            // Proceed with flower gathering logic
-            FlowerObject nearestFlower = FindNearestFlowerSimple();
-
-            if (nearestFlower != null)
-            {
-                // Di chuyển đến hoa
-                bool reachedFlowerMove = false;
-                moveRoutine = StartCoroutine(MoveToPosition(nearestFlower.position, r => reachedFlowerMove = r));
-                yield return moveRoutine;
-                if (!reachedFlowerMove)
-                {
-                    Debug.LogError($"{name}: FAILED to reach flower!");
-                    continue;
-                }
-                // Kiểm tra khoảng cách
-                float distance = Vector3.Distance(transform.position, nearestFlower.position);
-                if (distance <= flowerDetectionRadius)
-                {
-                    // Hái hoa
-                    yield return StartCoroutine(GatherFlower(nearestFlower));
-
-                    // Nghỉ ngắn sau khi hái và reset player request if needed
-                    yield return new WaitForSeconds(2f);
-
-                    // Complete player request if it was player initiated
-                    if (playerMadeRequest)
-                    {
-                        Debug.Log($"🌸 {gameObject.name}: Completed player's flower gathering request!");
-                        playerMadeRequest = false;
-                    }
-                }
-                else
-                {
-                    Debug.Log($"⚠️ {gameObject.name}: Couldn't reach flower ({distance:F2})");
-                }
-            }
-            else
-            {
-                // Không có hoa nào → hoàn thành player request
-                if (playerMadeRequest)
-                {
-                    Debug.Log($"🌸 {gameObject.name}: No flowers found, player request completed.");
-                    playerMadeRequest = false; // Reset request
-                    currentState = NPCState.Idle;
-                    yield return StartCoroutine(IdleRoutine());
-                }
-                else
-                {
-                    // Không có request và không có hoa → không có gì làm, chỉ đợi
-                    Debug.Log($"🌿 {gameObject.name}: Waiting for flowers or player request...");
-                    yield return StartCoroutine(IdleRoutine());
-                }
-            }
-
-            // Kiểm tra lại mỗi 1 giây
-            yield return new WaitForSeconds(1f);
-        }
+        activityCoroutine = StartCoroutine(StartActivity(newActivity));
     }
 
 
-    // ✅ ORIGINAL FINDER - KEEP ALL FLOWERS!
-    FlowerObject FindNearestFlowerSimple()
-    {
-        if (mapGenerator == null)
-            mapGenerator = FindObjectOfType<MapGenerator>();
 
-        Vector3 mapCenter = new Vector3(mapGenerator.width / 2f, mapGenerator.height / 2f, 0);
 
-        GameObject[] allFlowers = GameObject.FindGameObjectsWithTag("Flower");
-        if (allFlowers == null || allFlowers.Length == 0)
-        {
-            // Debug.LogWarning($"⚠️ {gameObject.name}: Không tìm thấy hoa nào trong scene!");
-            return null;
-        }
 
-        GameObject nearestFlower = null;
-        float minDistance = float.MaxValue;
-
-        foreach (GameObject flower in allFlowers)
-        {
-            if (flower == null || !flower.activeInHierarchy)
-                continue;
-
-            Vector3 flowerPos = flower.transform.position;
-            flowerPos.z = 0f;
-
-            // ✅ Giới hạn tuyệt đối
-            if (flowerPos.x < 0 || flowerPos.x > mapGenerator.width ||
-                flowerPos.y < 0 || flowerPos.y > mapGenerator.height)
-            {
-                // Debug.LogWarning($"🚫 {gameObject.name}: Bỏ qua hoa '{flower.name}' (ngoài biên map)");
-                continue;
-            }
-
-            // ✅ Giới hạn theo tâm map
-            float distFromCenter = Vector3.Distance(flowerPos, mapCenter);
-            if (distFromCenter > 90f)
-            {
-                // Debug.LogWarning($"🚫 {gameObject.name}: Bỏ qua hoa '{flower.name}' (xa tâm {distFromCenter:F1})");
-                continue;
-            }
-
-            // ✅ Tính khoảng cách NPC - hoa
-            float distFromNPC = Vector3.Distance(transform.position, flowerPos);
-            if (distFromNPC < minDistance)
-            {
-                minDistance = distFromNPC;
-                nearestFlower = flower;
-            }
-        }
-
-        if (nearestFlower != null)
-        {
-            // Debug.Log($"🎯 {gameObject.name}: Tìm thấy hoa '{nearestFlower.name}' tại {nearestFlower.transform.position:F2} (cách NPC {minDistance:F2})");
-            return new FlowerObject(nearestFlower);
-        }
-
-        // Debug.LogWarning($"⚠️ {gameObject.name}: Không có hoa nào hợp lệ trong phạm vi!");
-        return null;
-    }
 
 
 
 
 
     // ✅ TIME-BASED ROUTINE - CHỈ HÁI HOA 15:00-18:00
-    IEnumerator TimeBasedRoutine()
-    {
-        // Debug.Log($"⏰ {gameObject.name}: Time-based routine STARTED! Flower hunting: {flowerHuntingStartHour}:00-{flowerHuntingEndHour}:00");
 
-        while (true)
-        {
-            // Cập nhật hoạt động dựa trên thời gian
-            UpdateCurrentActivity();
-
-            // Chỉ đi hái hoa nếu đúng giờ
-            if (currentActivity == NPCActivity.FlowerHunting)
-            {
-                FlowerObject nearestFlower = FindNearestFlowerSimple();
-
-                if (nearestFlower != null)
-                {
-                    bool reachFlower = false;
-                    moveRoutine = StartCoroutine(MoveToPosition(nearestFlower.position, r => reachFlower = r));
-                    yield return moveRoutine;
-                    // Kiểm tra đã đến gần chưa
-                    float distance = Vector3.Distance(transform.position, nearestFlower.position);
-                    if (distance <= flowerDetectionRadius)
-                    {
-                        // Debug.Log($"✅ {gameObject.name}: Reached flower - time to gather!");
-
-                        // Hái hoa
-                        yield return StartCoroutine(GatherFlower(nearestFlower));
-
-                        // Sau khi hái, short break
-                        yield return new WaitForSeconds(2f);
-                    }
-                    else
-                    {
-                        // Debug.LogWarning($"⚠️ Couldn't get close enough to flower (distance: {distance})");
-                    }
-                }
-                else
-                {
-                    // Debug.Log($"🔍 {gameObject.name}: No flowers found - wandering randomly...");
-
-                    // Random wandering
-                    Vector3 randomPoint = villageCenter.position +
-                        new Vector3(Random.Range(-wanderRadius, wanderRadius), Random.Range(-wanderRadius, wanderRadius), 0f);
-
-                    bool reachedRandom = false;
-                    moveRoutine = StartCoroutine(MoveToPosition(randomPoint, r => reachedRandom = r));
-                    yield return moveRoutine;
-
-                }
-            }
-            else
-            {
-                // Không phải giờ hái hoa → đứng im
-                // Debug.Log($"😴 {gameObject.name}: Không phải giờ hái hoa, đang đứng im ({TimeManager.Instance?.GetCurrentTimeString()})");
-                yield return StartCoroutine(IdleRoutine());
-            }
-
-            // Kiểm tra lại sau 1 giây
-            yield return new WaitForSeconds(1f);
-        }
-    }
 
     // ✅ IDLE ROUTINE - ĐỨNG IM KHI KHÔNG PHẢI GIỜ HÁI HOA
     IEnumerator IdleRoutine()
@@ -452,75 +219,33 @@ public class NPCRoutineAI : MonoBehaviour
         yield return new WaitForSeconds(1f);
     }
 
-
-
-    void FixVillageCenter()
+    public void UpdateCurrentActivity()
     {
-        // ✅ Validate Village Center BEFORE any logic runs
-        if (villageCenter == null)
-        {
-            // Debug.LogError($"❌ CRITICAL: Village Center NULL in Inspector!");
-
-            // Try find by tag
-            GameObject villageObj = GameObject.FindWithTag("VillageCenter");
-            if (villageObj != null)
-            {
-                villageCenter = villageObj.transform;
-                // Debug.Log($"✅ Found VillageCenter by tag: {villageObj.name} at {villageCenter.position}");
-                return;
-            }
-
-            // If still null - create persistent one
-            // Debug.LogWarning($"⚠️ Creating VillageCenter at NPC position: {transform.position}");
-            GameObject newCenter = new GameObject("VillageCenter");
-            newCenter.transform.position = transform.position;
-            newCenter.tag = "VillageCenter";
-            villageCenter = newCenter.transform;
-
-            // Don't destroy on load
-            DontDestroyOnLoad(newCenter);
-        }
-        else
-        {
-            // Debug.Log($"✅ Village Center set: {villageCenter.name} at {villageCenter.position}");
-        }
-
-        // Also validate Home Location
-        if (homeLocation == null)
-        {
-            // Debug.LogWarning($"⚠️ Home Location NULL, setting to NPC position");
-            homeLocation = transform;
-        }
-    }
-
-    void UpdateCurrentActivity()
-    {
-        // Lấy giờ hiện tại từ TimeManager hoặc dùng giá trị test
         float hour = useRealTimeManager && TimeManager.Instance != null
             ? TimeManager.Instance.GetCurrentHour()
             : currentGameTime;
-
-        // Log nhẹ (mỗi giây)
+        Debug.Log($"⏰asdasdadad {name}: UpdateCurrentActivity called at {hour:F2}h");
         if (Time.frameCount % 60 == 0)
         {
             Debug.Log($"🕒 NPC {name}: Giờ hiện tại {hour:F1}h → Activity={currentActivity}");
         }
 
-        // Priority 1: Market trading for traders (8h-12h)
         if (isTrader && hour >= marketOpenHour && hour < marketCloseHour)
         {
             currentActivity = NPCActivity.MarketTrading;
         }
-        // Priority 2: Flower hunting (14h-16h)
+        else if (isTrader && hour >= marketCloseHour && hour < 13f)
+        {
+            currentActivity = NPCActivity.LunchBreak;
+        }
         else if (hour >= flowerHuntingStartHour && hour < flowerHuntingEndHour)
         {
             currentActivity = NPCActivity.FlowerHunting;
         }
         else
         {
-            // Ngoài khung giờ đặc biệt: NPC đứng im hoặc làm activity khác
-            // Có thể mở rộng thêm các activity khác theo giờ
-            currentActivity = NPCActivity.FlowerHunting;
+
+            currentActivity = NPCActivity.LunchBreak;
         }
     }
 
@@ -577,145 +302,77 @@ public class NPCRoutineAI : MonoBehaviour
     IEnumerator FlowerHuntingRoutine()
     {
         currentState = NPCState.Idle;
-        int failedAttempts = 0;
+
         int flowersGathered = 0;
-        int maxFlowersPerSession = 3; // Giới hạn số hoa mỗi session
+        int maxFlowersPerSession = 3;
+        int failedAttempts = 0;
 
-        // Debug.Log($"🌸 {gameObject.name}: Bắt đầu FlowerHuntingRoutine!");
+        Debug.Log($"🌸 {name}: Start FlowerHuntingRoutine");
 
-        while (currentActivity == NPCActivity.FlowerHunting && flowersGathered < maxFlowersPerSession)
+        while (currentActivity == NPCActivity.FlowerHunting &&
+               flowersGathered < maxFlowersPerSession)
         {
-            // ✅ Giảm log spam - chỉ log quan trọng
-            if (failedAttempts == 0 || failedAttempts % 3 == 0)
+            FlowerObject flower = FindNearestAvailableFlower();
+
+            if (flower == null)
             {
-                // Debug.Log($"🔍 {gameObject.name}: Tìm kiếm bông hoa... (lần thử {failedAttempts + 1})");
+                failedAttempts++;
+                Debug.Log($"❌ {name}: No flower found (attempt {failedAttempts})");
+
+                yield return new WaitForSeconds(2f);
+                continue;
             }
 
-            FlowerObject nearestFlower = FindNearestAvailableFlower();
+            failedAttempts = 0;
+            currentTargetFlower = flower;
 
-            if (nearestFlower != null)
+            currentState = NPCState.MovingToTarget;
+            bool reached = false;
+
+            Debug.Log($"🚶 {name}: Moving to flower {flower.gameObject.name}");
+
+            yield return StartCoroutine(
+                MoveToPosition(flower.gameObject.transform.position, r => reached = r)
+            );
+
+            if (!reached || flower.gameObject == null || !flower.isAvailable)
             {
-                failedAttempts = 0; // Reset counter khi tìm thấy hoa
-                float initialDistance = Vector3.Distance(transform.position, nearestFlower.position);
-
-                // Debug.Log($"🎯 {gameObject.name}: Tìm thấy hoa '{nearestFlower.gameObject.name}' ở khoảng cách {initialDistance:F2}");
-
-                currentState = NPCState.MovingToTarget;
-                currentTargetFlower = nearestFlower;
-
-                // ✅ Di chuyển đến vị trí hoa với timeout
-                bool reachedFlower = false;
-                float moveTimeout = 10f; // 10 giây timeout
-                float moveTimer = 0f;
-
-                while (Vector3.Distance(transform.position, nearestFlower.position) > flowerDetectionRadius && moveTimer < moveTimeout)
-                {
-                    // Kiểm tra hoa vẫn tồn tại
-                    if (nearestFlower.gameObject == null)
-                    {
-                        // Debug.LogWarning($"⚠️ {gameObject.name}: Hoa bị destroy trong lúc di chuyển!");
-                        break;
-                    }
-
-                    bool reachedFlowerMove2 = false;
-                    moveRoutine = StartCoroutine(MoveToPosition(nearestFlower.position, r => reachedFlowerMove2 = r));
-                    yield return moveRoutine;
-
-
-                    moveTimer += Time.deltaTime;
-
-                    // Nếu đã đủ gần, break
-                    if (Vector3.Distance(transform.position, nearestFlower.position) <= flowerDetectionRadius)
-                    {
-                        reachedFlower = true;
-                        break;
-                    }
-                }
-
-                // ✅ Kiểm tra đã đến gần hoa chưa
-                float finalDistance = Vector3.Distance(transform.position, nearestFlower.position);
-                if (reachedFlower || finalDistance <= flowerDetectionRadius * 1.5f)
-                {
-                    // Debug.Log($"✅ {gameObject.name}: Đã đủ gần để hái hoa!");
-                    currentState = NPCState.GatheringFlower;
-
-                    // Debug.Log($"🌸 {gameObject.name}: Bắt đầu quá trình hái hoa {nearestFlower.gameObject.name}");
-
-                    yield return StartCoroutine(GatherFlower(nearestFlower));
-
-                    // Nếu đến được đây tức là gathering không bị exception
-                    bool gatheringSuccess = true;
-                    flowersGathered++;
-                    if (gatheringSuccess)
-                    {
-                        // Debug.Log($"✅ {gameObject.name}: Hoàn thành hái hoa! Tổng số đã hái: {flowersGathered}");
-                        // ✅ Gọi NPC để nhận flower gathered event
-                        NPC npcComponent = GetComponent<NPC>();
-                        if (npcComponent != null)
-                        {
-                            npcComponent.OnFlowerGathered(nearestFlower.gameObject);
-                        }
-                    }
-                }
-                else
-                {
-                    // Debug.LogWarning($"⚠️ {gameObject.name}: Không thể đến đủ gần hoa (khoảng cách: {finalDistance:F2}, timeout: {moveTimer:F1}s)");
-                    failedAttempts++;
-                }
-
+                Debug.LogWarning($"⚠️ {name}: Failed to reach flower");
                 currentTargetFlower = null;
+                yield return new WaitForSeconds(0.5f);
+                continue;
+            }
+
+            currentState = NPCState.GatheringFlower;
+
+            bool gathered = false;
+            yield return StartCoroutine(
+                GatherFlower(flower, success => gathered = success)
+            );
+
+            if (gathered)
+            {
+                flowersGathered++;
+                Debug.Log($"🌼 {name}: Gathered flower {flowersGathered}/{maxFlowersPerSession}");
+
+                NPC npc = GetComponent<NPC>();
+                if (npc != null)
+                    npc.OnFlowerGathered(flower.gameObject);
             }
             else
             {
-                failedAttempts++;
-
-                // ✅ Giảm log spam cho failed attempts
-                if (failedAttempts % 3 == 0)
-                {
-                    // Debug.LogWarning($"❌ {gameObject.name}: Không tìm thấy hoa nào (thử {failedAttempts})");
-                }
-
-                // ✅ Tìm kiếm random area nhưng giới hạn
-                if (failedAttempts <= 5)
-                {
-                    Vector3 explorePoint = villageCenter.position +
-                        new Vector3(Random.Range(-wanderRadius * 0.3f, wanderRadius * 0.3f),
-                                    Random.Range(-wanderRadius * 0.3f, wanderRadius * 0.3f), 0f);
-
-                    // ✅ Đảm bảo không đi quá xa
-                    float maxDistance = 10f;
-                    if (Vector3.Distance(villageCenter.position, explorePoint) > maxDistance)
-                    {
-                        explorePoint = villageCenter.position +
-                            (explorePoint - villageCenter.position).normalized * maxDistance;
-                    }
-
-                    // ✅ // Debug: Log explore point details
-                    // Debug.Log($"🎲 {gameObject.name}: Creating explore point");
-                    // Debug.Log($"🏘️ VillageCenter: {villageCenter.position:F2}");
-                    // Debug.Log($"📏 WanderRadius: {wanderRadius:F2}");
-                    // Debug.Log($"🎯 Target Explore Point: {explorePoint:F2}");
-                    // Debug.Log($"📏 Distance from VillageCenter: {Vector3.Distance(villageCenter.position, explorePoint):F2}");
-
-                    bool reachedExplore = false;
-                    moveRoutine = StartCoroutine(MoveToPosition(explorePoint, r => reachedExplore = r));
-                    yield return moveRoutine;
-                    yield return new WaitForSeconds(0.5f);
-                }
-                else
-                {
-                    // Nếu fail quá nhiều lần, kết thúc session
-                    // Debug.Log($"🚫 {gameObject.name}: Quá nhiều lần thử thất bại, kết thúc FlowerHunting");
-                    break;
-                }
+                Debug.LogWarning($"⚠️ {name}: Gather failed");
             }
 
-            // ✅ Giảm delay để tìm kiếm nhanh hơn
-            yield return new WaitForSeconds(0.2f);
+            currentTargetFlower = null;
+            currentState = NPCState.Idle;
+
+            yield return new WaitForSeconds(0.3f);
         }
 
-        // Debug.Log($"🏁 {gameObject.name}: FlowerHuntingRoutine kết thúc (Đã hái {flowersGathered}/{maxFlowersPerSession} hoa)");
+        Debug.Log($"🏁 {name}: FlowerHuntingRoutine END (gathered {flowersGathered})");
     }
+
 
 
 
@@ -869,9 +526,6 @@ public class NPCRoutineAI : MonoBehaviour
             yield break;
         }
 
-        // -------------------------------
-        // STEP 0 — Find Market & StandPoint
-        // -------------------------------
         if (marketStallLocation == null)
         {
             Debug.Log($"🔍 {name}: Searching for Market in scene...");
@@ -890,7 +544,6 @@ public class NPCRoutineAI : MonoBehaviour
 
                 if (market != null)
                 {
-                    // Tìm theo tag "StandPoint" trong children của market
                     Transform stand = null;
                     foreach (Transform child in market)
                     {
@@ -903,17 +556,15 @@ public class NPCRoutineAI : MonoBehaviour
 
                     if (stand != null)
                     {
-                        // Force X = 0 relative to market
                         Vector3 correctedLocalPos = stand.localPosition;
                         correctedLocalPos.x = 0f;
                         stand.localPosition = correctedLocalPos;
-                        
+
                         marketStallLocation = stand;
                         Debug.Log($"📍 {name}: Using StandPoint (by Tag) - World pos: {stand.position}, Local pos: {stand.localPosition}, Market at: {market.position}");
                     }
                     else
                     {
-                        // Tạo vị trí BÊN CẠNH market (tránh collider)
                         GameObject standPointObj = new GameObject($"{market.name}_StandPoint_Auto");
                         standPointObj.transform.SetParent(camp.transform);
                         standPointObj.transform.position = market.position;
@@ -936,10 +587,6 @@ public class NPCRoutineAI : MonoBehaviour
         }
 
         Vector3 stallPos = marketStallLocation.position;
-
-        // -------------------------------
-        // STEP 1 — Move STRAIGHT TO MARKET
-        // -------------------------------
         Debug.Log($"🚶 {name}: Moving directly to MARKET → World: {stallPos}, Local to parent: {marketStallLocation.localPosition}");
 
         bool reached = false;
@@ -953,55 +600,59 @@ public class NPCRoutineAI : MonoBehaviour
 
         Debug.Log($"🏪 {name}: REACHED Market Stall → shop open!");
 
-        // -------------------------------
-        // STEP 2 — Idle while trading
-        // -------------------------------
         currentState = NPCState.Idle;
         Rigidbody2D rb = GetComponent<Rigidbody2D>();
         if (rb) rb.velocity = Vector2.zero;
 
-        while (currentActivity == NPCActivity.MarketTrading)
+        while (true)
         {
+            float hour = TimeManager.Instance.GetCurrentHour();
+            if (hour >= marketCloseHour)
+            {
+
+                MarketTrigger trigger = FindObjectOfType<MarketTrigger>();
+                if (trigger != null)
+                {
+
+                    trigger.ShowNPC(gameObject);
+                    trigger.ResetMarketToNormal();
+
+                }
+                currentState = NPCState.Idle;
+                yield break;
+            }
             yield return new WaitForSeconds(1f);
         }
 
-        Debug.Log($"🏁 {name}: MarketTrading ended.");
+
     }
 
 
-    // === FLOWER GATHERING LOGIC ===
 
     public IEnumerator ScanForFlowers()
     {
         while (true)
         {
-            // Tìm tất cả game objects được coi là "hoa"
-            foreach (GameObject flower in GameObject.FindGameObjectsWithTag("Flower"))
-            {
-                AddFlowerIfNotExists(flower);
-            }
+            GameObject[] flowers = GameObject.FindGameObjectsWithTag("Flower");
 
-            // Cũng tìm theo prefab list
-            foreach (GameObject obj in GameObject.FindObjectsOfType<GameObject>())
+            foreach (GameObject flower in flowers)
             {
-                foreach (GameObject flowerPrefab in flowerPrefabs)
+                if (flower == null) continue;
+
+                if (!availableFlowers.Any(f => f.gameObject == flower))
                 {
-                    if (obj.name.Contains(flowerPrefab.name))
-                    {
-                        AddFlowerIfNotExists(obj);
-                        if (!obj.CompareTag("Flower"))
-                            obj.tag = "Flower";
-                        break;
-                    }
+                    availableFlowers.Add(new FlowerObject(flower));
+                    Debug.Log($"🌱 {name}: Added flower {flower.name}");
                 }
             }
 
-            // Loại bỏ những hoa đã bị hái
-            availableFlowers.RemoveAll(flower => flower.gameObject == null || !flower.isAvailable);
+            // ❗ CHỈ remove hoa bị destroy
+            availableFlowers.RemoveAll(f => f.gameObject == null);
 
-            yield return new WaitForSeconds(5f); // Quét mỗi 5 giây
+            yield return new WaitForSeconds(5f);
         }
     }
+
 
     void AddFlowerIfNotExists(GameObject flowerObj)
     {
@@ -1013,233 +664,119 @@ public class NPCRoutineAI : MonoBehaviour
 
     FlowerObject FindNearestAvailableFlower()
     {
-        // ✅ Giảm log spam - chỉ khi cần
-        if (currentState == NPCState.Idle)
-        {
-            if (Time.frameCount % 60 == 0) // Log mỗi 1 giây thay vì mỗi lần
-            {
-                // Debug.Log($"🔍 {gameObject.name}: Bắt đầu tìm hoa gần nhất...");
-            }
-        }
-
-        // ✅ Kiểm tra FlowerManager
-        if (FlowerManager.Instance == null && Application.isPlaying)
-        {
-            if (currentState == NPCState.Idle)
-            {
-                // Debug.LogWarning($"⚠️ {gameObject.name}: FlowerManager chưa sẵn sàng!");
-            }
-            return null;
-        }
-
-        // ✅ Tạo danh sách tất cả hoa có sẵn
-        List<GameObject> allFlowers = new List<GameObject>();
-
-        // Thêm hoa từ FlowerManager
-        if (FlowerManager.Instance != null)
-        {
-            allFlowers.AddRange(FlowerManager.Instance.GetAllFlowerObjects());
-        }
-
-        // Thêm hoa theo tag
-        GameObject[] taggedFlowers = GameObject.FindGameObjectsWithTag("Flower");
-        foreach (var flower in taggedFlowers)
-        {
-            if (!allFlowers.Contains(flower))
-                allFlowers.Add(flower);
-        }
-
-        // ✅ Lọc hoa còn tồn tại và active
-        allFlowers.RemoveAll(f => f == null || !f.activeInHierarchy);
-
-        if (currentState == NPCState.Idle)
-        {
-            // Debug.Log($"🌸 {gameObject.name}: Tìm thấy {allFlowers.Count} bông hoa trong scene");
-
-            // ✅ // Debug: Check for flowers at extreme positions
-            foreach (GameObject flower in allFlowers.Take(5))
-            {
-                Vector3 pos = flower.transform.position;
-                float distFromCenter = Vector3.Distance(pos, Vector3.zero);
-                // Debug.Log($"🌸 Flower '{flower.name}' at ({pos.x:F1}, {pos.y:F1}) - distance from center: {distFromCenter:F1}");
-
-                if (distFromCenter > 50f)
-                {
-                    // Debug.LogError($"⚠️ FLOWER TOO FAR FROM CENTER! This may be causing NPC to run to border: {flower.name}");
-                }
-            }
-        }
-
-        if (allFlowers.Count == 0)
-        {
-            if (currentState == NPCState.Idle)
-            {
-                // Debug.Log($"❌ {gameObject.name}: Không tìm thấy bông hoa nào");
-            }
-            return null;
-        }
-
-        // ✅ Tìm hoa gần nhất với logging tối thiểu
-        GameObject nearestFlower = null;
+        FlowerObject nearest = null;
         float minDistance = float.MaxValue;
-        int totalChecked = 0;
 
-        foreach (GameObject flower in allFlowers)
+        foreach (FlowerObject flower in availableFlowers)
         {
-            float distance = Vector3.Distance(transform.position, flower.transform.position);
-            totalChecked++;
+            if (flower.gameObject == null) continue;
+            if (!flower.isAvailable) continue;
 
-            // ✅ Chỉ log top 3 hoa gần nhất để giảm spam
-            if (distance < minDistance || totalChecked <= 3)
+            Vector3 flowerPos = flower.gameObject.transform.position;
+            flowerPos.z = 0f;
+
+            float dist = Vector3.Distance(transform.position, flowerPos);
+
+            if (dist < minDistance && dist <= flowerDetectionRadius * 4f)
             {
-                if (distance < minDistance)
-                {
-                    minDistance = distance;
-                    nearestFlower = flower;
-                }
-
-                if (totalChecked <= 3)
-                {
-                    // Debug.Log($"📏 {gameObject.name}: Kiểm tra hoa '{flower.name}' ở khoảng cách {distance:F2}");
-                }
+                minDistance = dist;
+                nearest = flower;
             }
         }
 
-        if (nearestFlower == null)
-        {
-            // Debug.Log($"❌ {gameObject.name}: Không xác định được hoa gần nhất");
-            return null;
-        }
+        if (nearest == null)
+            Debug.Log($"❌ {name}: No available flower found");
 
-        // ✅ Important log - always show this
-        // Debug.Log($"🎯 {gameObject.name}: Tìm thấy hoa gần nhất '{nearestFlower.name}' ở gần nhất '{nearestFlower.name}' ở khoảng cách {minDistance:F2}");
-        // Debug.Log($"🌸 Flower Position: {nearestFlower.transform.position:F2}");
-
-        // ✅ Kiểm tra khoảng cách hợp lý để di chuyển
-        float maxDistance = flowerDetectionRadius * 4f; // Tăng tầm tìm lên 12f
-        if (minDistance > maxDistance)
-        {
-            // Debug.LogWarning($"⚠️ {gameObject.name}: Hoa '{nearestFlower.name}' quá xa ({minDistance:F2} > {maxDistance})");
-            return null;
-        }
-
-        return new FlowerObject(nearestFlower);
+        return nearest;
     }
 
 
 
-    IEnumerator GatherFlower(FlowerObject flower)
+
+    IEnumerator GatherFlower(FlowerObject flower, System.Action<bool> onDone)
     {
-        if (!flower.isAvailable)
+        if (flower == null || flower.gameObject == null || !flower.isAvailable)
         {
-            // Debug.LogWarning($"⚠️ {gameObject.name}: Không thể hái hoa - hoa không available");
+            onDone?.Invoke(false);
             yield break;
         }
 
-        SpriteRenderer sr = GetComponent<SpriteRenderer>();
-        if (sr != null)
-            // Debug.Log($"🧍‍♂️ {gameObject.name}: SpriteRenderer enabled = {sr.enabled}, color={sr.color}");
+        bool success = false;
 
-            // Debug.Log($"🌸 {gameObject.name}: Bắt đầu hái hoa '{flower.gameObject.name}'");
+        yield return StartCoroutine(
+            GatheringTimer(flower, r => success = r)
+        );
 
-
-
-            // ⚠️ Animation disabled - no animation parameters yet
-            // if (animator != null)
-            // {
-            //     try { animator.SetTrigger("Gather"); }
-            //     catch
-            //     { 
-            //         // Debug.LogWarning($"⚠️ {gameObject.name}: Trigger Gather fail"); 
-            //     }
-            // }
-
-            yield return StartCoroutine(GatheringTimer(flower));
-
-        // Kiểm tra nếu NPC bị ẩn sprite trong lúc hái
-        //         if (sr != null && !sr.enabled)
-        //     // Debug.LogError($"❌ {gameObject.name}: SpriteRenderer bị tắt trong lúc hái hoa!");
-        // // else
-        // //     // Debug.Log($"✅ {gameObject.name}: SpriteRenderer vẫn hiển thị bình thường.");
-
-        // //                 // Debug.Log($"✅ {gameObject.name}: Hoàn thành việc hái hoa!");
+        onDone?.Invoke(success);
     }
 
 
-    IEnumerator GatheringTimer(FlowerObject flower)
+
+    IEnumerator GatheringTimer(FlowerObject flower, System.Action<bool> onDone)
     {
         float timer = 0f;
-        float logInterval = 1f; // Log mỗi 1 giây
-        float lastLogTime = 0f;
-        Vector3 lockedPos = transform.position;
 
-        // Debug.Log($"⏱️ {gameObject.name}: Bắt đầu đếm ngược hái hoa ({gatheringTime}s)");
-
-        // Lock flower ngay khi bắt đầu gathering
-        flower.isAvailable = false;
-
-        // Đảm bảo flower vẫn tồn tại
-        if (flower.gameObject == null)
+        if (flower == null || flower.gameObject == null)
         {
-            // Debug.LogError($"❌ {gameObject.name}: Hoa đã bị destroy!");
+            onDone?.Invoke(false);
             yield break;
         }
+
+        // 🔒 LOCK HOA KHI BẮT ĐẦU
+        flower.isAvailable = false;
+
+        Vector3 lockedPos = transform.position;
+        GameObject flowerGO = flower.gameObject; // cache reference
 
         while (timer < gatheringTime)
         {
-            transform.position = lockedPos;
-
-            float currentDistance = Vector3.Distance(transform.position, flower.position);
-            if (currentDistance > flowerDetectionRadius * 2f)
+            // ❗ HOA BỊ DESTROY GIỮA CHỪNG
+            if (flowerGO == null)
             {
-                // Debug.LogWarning($"⚠️ {gameObject.name}: NPC rời xa hoa ({currentDistance:F2}) — có thể rơi xuống?");
-                // Debug.Log($"📍 LockedPos={lockedPos}, CurrentPos={transform.position}");
+                onDone?.Invoke(false);
                 yield break;
             }
 
-            if (Mathf.Abs(transform.position.z) > 0.1f)
+            // Giữ NPC đứng yên
+            transform.position = lockedPos;
+
+            float dist = Vector3.Distance(
+                transform.position,
+                flowerGO.transform.position
+            );
+
+            // ❗ NPC bị đẩy ra xa
+            if (dist > flowerDetectionRadius * 2f)
             {
-                // Debug.LogError($"❌ {gameObject.name}: Z bị lệch khỏi mặt phẳng 2D ({transform.position.z:F3}) — NPC có thể biến mất khỏi camera!");
-                transform.position = new Vector3(transform.position.x, transform.position.y, 0f);
+                flower.isAvailable = true; // UNLOCK
+                onDone?.Invoke(false);
+                yield break;
             }
 
             timer += Time.deltaTime;
             yield return null;
         }
 
-
-        // Hoàn thành hái - hoa biến mất
-        if (flower.gameObject != null)
+        // ✅ HÁI HOA THÀNH CÔNG
+        if (flowerGO != null)
         {
-            // Debug.Log($"🎉 {gameObject.name}: Hoàn thành hái hoa '{flower.gameObject.name}'!");
+            // Xóa khỏi list TRƯỚC
+            availableFlowers.RemoveAll(f => f.gameObject == flowerGO);
 
-            // ⚠️ Animation disabled
-            // if (animator)
-            // {
-            //     animator.SetTrigger("GatherComplete");
-            // }
-            yield return new WaitForSeconds(0.5f); // Giảm delay
-
-            // ✅ Gọi FlowerManager để quản lý respawn
+            // Gửi FlowerManager xử lý
             if (FlowerManager.Instance != null)
-            {
-                // Debug.Log($"🔄 {gameObject.name}: Gửi hoa {flower.gameObject.name} cho FlowerManager để xử lý");
-                StartCoroutine(DelayedRemoveFlower(flower.gameObject, 1.5f));
-
-            }
+                FlowerManager.Instance.RemoveFlower(flowerGO);
             else
-            {
-                // Debug.LogWarning($"⚠️ {gameObject.name}: FlowerManager null, tự hủy hoa!");
-                Destroy(flower.gameObject, 0.1f);
-            }
+                Destroy(flowerGO);
 
-            // Debug.Log($"🌸 NPC {gameObject.name} đã hái hoa thành công tại {flower.position}");
+            flower.gameObject = null;
+            onDone?.Invoke(true);
+            yield break;
         }
-        else
-        {
-            // Debug.LogError($"❌ {gameObject.name}: Hoa không tồn tại khi hoàn thành hái!");
-        }
+
+        onDone?.Invoke(false);
     }
+
     IEnumerator DelayedRemoveFlower(GameObject flower, float delay)
     {
         yield return new WaitForSeconds(delay);
@@ -1271,9 +808,6 @@ public class NPCRoutineAI : MonoBehaviour
             onComplete?.Invoke(false);
             yield break;
         }
-
-        Debug.Log($"🚶 {name}: MoveToPosition → {targetPos}");
-
         currentState = NPCState.MovingToTarget;
         currentTargetPosition = targetPos;
 
@@ -1299,8 +833,6 @@ public class NPCRoutineAI : MonoBehaviour
         }
 
         int index = 0;
-        float timeout = 10f;
-        float timer = 0f;
         int repathCount = 0;
 
         float stopDistance = 0.15f;
@@ -1413,6 +945,7 @@ public class NPCRoutineAI : MonoBehaviour
 
     public void EnablePhysicsAfterMarket()
     {
+        float hour = TimeManager.Instance.GetCurrentHour();
         physicsLockedForMarket = false;
         Rigidbody2D rb = GetComponent<Rigidbody2D>();
         if (rb != null)
@@ -1524,7 +1057,6 @@ public class NPCRoutineAI : MonoBehaviour
             Gizmos.DrawWireSphere(homeLocation.position, 2f);
         }
 
-        // Vẽ vùng làng
         if (villageCenter != null)
         {
             Gizmos.color = Color.green;
@@ -1708,5 +1240,90 @@ public class NPCRoutineAI : MonoBehaviour
             stopResetCoroutine = null;
         }
     }
+    public void ForceGoHome()
+    {
+        Debug.Log($"🏠 {name}: ForceGoHome() called");
+
+        if (homeLocation == null)
+        {
+            Debug.LogWarning($"⚠️ {name}: homeLocation is NULL → using current position");
+            homeLocation = transform;
+        }
+
+        if (moveRoutine != null)
+            StopCoroutine(moveRoutine);
+    }
+
+    IEnumerator GoHomeRoutine()
+    {
+        bool reached = false;
+
+        yield return MoveToPosition(villageCenter.position, r => reached = r);
+        Debug.Log($"🏠 {name}: GoHomeRoutine completed");
+        if (reached)
+            Debug.Log($"🏡 {name}: Arrived home, switching to Idle");
+        else
+            Debug.LogWarning($"⚠️ {name}: Could not reach home, forcing Idle anyway");
+
+        currentState = NPCState.Idle;
+    }
+
+    IEnumerator WanderAroundCamp()
+    {
+        EnablePhysicsAfterMarket();
+
+        Transform campCenter = marketStallLocation.parent;
+        if (campCenter == null)
+        {
+            Debug.LogWarning($"⚠️ {name}: Camp center is NULL, cannot wander around camp");
+            yield break;
+        }
+
+        float radius = 4.5f;
+        float minStep = 1.2f;
+        float maxStep = 2.2f;
+        float minWait = 1.0f;
+        float maxWait = 2.5f;
+
+        Debug.Log($"🚶 {name}: Start optimized wander around camp...");
+
+        while (true)
+        {
+            float randomAngle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
+            float stepSize = Random.Range(minStep, maxStep);
+
+            Vector3 dir = new Vector3(Mathf.Cos(randomAngle), Mathf.Sin(randomAngle), 0f);
+            Vector3 target = transform.position + dir * stepSize;
+
+            if (Vector3.Distance(target, transform.position) < 0.5f)
+                continue;
+
+            Vector3 centerOffset = target - campCenter.position;
+            if (centerOffset.magnitude > radius)
+                target = campCenter.position + centerOffset.normalized * radius;
+
+            bool reached = false;
+            yield return StartCoroutine(MoveToPosition(target, r => reached = r));
+
+            if (!reached)
+            {
+                yield return new WaitForSeconds(0.5f);
+                continue;
+            }
+
+            if (animator != null)
+            {
+                animator.SetBool("Walking", false);
+                animator.SetBool("Idle", true);
+            }
+
+            yield return new WaitForSeconds(Random.Range(minWait, maxWait));
+        }
+    }
+    public void RequestGoHome()
+    {
+        requestGoHome = true;
+    }
+
 }
 

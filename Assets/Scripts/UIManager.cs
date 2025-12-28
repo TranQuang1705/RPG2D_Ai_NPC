@@ -1,5 +1,6 @@
 using UnityEngine;
-
+using UnityEngine.EventSystems;
+using TMPro;
 
 public class UIManager : Singleton<UIManager>
 {
@@ -45,6 +46,31 @@ public class UIManager : Singleton<UIManager>
     public bool IsAnyPanelOpen()
     {
         return openPanelCount > 0;
+    }
+
+    /// <summary>
+    /// Check if any input field is currently focused (being typed in)
+    /// </summary>
+    public bool IsInputFieldFocused()
+    {
+        GameObject selected = EventSystem.current?.currentSelectedGameObject;
+        if (selected != null)
+        {
+            // Check for TMP_InputField
+            TMP_InputField tmpInput = selected.GetComponent<TMP_InputField>();
+            if (tmpInput != null && tmpInput.isFocused)
+            {
+                return true;
+            }
+            
+            // Check for legacy InputField (just in case)
+            UnityEngine.UI.InputField legacyInput = selected.GetComponent<UnityEngine.UI.InputField>();
+            if (legacyInput != null && legacyInput.isFocused)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void DisablePlayerControls()

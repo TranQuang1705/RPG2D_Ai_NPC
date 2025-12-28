@@ -24,6 +24,7 @@ public class DatabaseShopItem
     public string coin_type;
     public float discount_percent;
     public bool is_available;
+    public int currentStock;
 }
 
 [System.Serializable]
@@ -45,11 +46,13 @@ public class DatabaseShopLoader : MonoBehaviour
 
     [Header("Auto Load")]
     [SerializeField] private bool loadOnStart = false; // Load manually when needed
-    
+
     private Dictionary<int, List<DatabaseShopItem>> shopCache = new Dictionary<int, List<DatabaseShopItem>>();
 
     public static event Action<int> OnShopInventoryLoaded; // event(npcId)
-
+    [Header("Reset Settings")]
+    [SerializeField] private int defaultStockOnGameStart = 20;
+    [SerializeField] private bool resetStockOnGameStart = true;
     void Awake()
     {
         if (Instance != null && Instance != this)
@@ -63,6 +66,12 @@ public class DatabaseShopLoader : MonoBehaviour
     void Start()
     {
         Debug.Log($"🏪 [DatabaseShopLoader] Initialized");
+
+        if (resetStockOnGameStart)
+        {
+            StartCoroutine(ResetAllShopStockOnGameStart());
+        }
+
     }
 
     /// <summary>
@@ -94,7 +103,7 @@ public class DatabaseShopLoader : MonoBehaviour
                     }
 
                     DatabaseShopItemList shopList = JsonUtility.FromJson<DatabaseShopItemList>("{\"shop_items\":" + json + "}");
-                    
+
                     // Cache shop inventory
                     shopCache[npcId] = shopList.shop_items;
 
@@ -103,7 +112,7 @@ public class DatabaseShopLoader : MonoBehaviour
                     // Log items
                     foreach (var item in shopList.shop_items)
                     {
-                        Debug.Log($"  📦 {item.item_name} - {item.price} {item.coin_type} (stock: {item.stock})");
+                        Debug.Log($"  📦(afafaf) {item.item_name} - {item.price} {item.coin_type} (stock: {item.stock})");
                     }
 
                     OnShopInventoryLoaded?.Invoke(npcId);
@@ -131,10 +140,46 @@ public class DatabaseShopLoader : MonoBehaviour
         }
         return new List<DatabaseShopItem>();
     }
+    private IEnumerator ResetAllShopStockOnGameStart()
+    {
+        Debug.Log("🔄 [ShopReset] Resetting all shop stock on game start...");
 
-    /// <summary>
-    /// Convert DatabaseShopItem to ShopItem for NPCTrader
-    /// </summary>
+        // ⚠️ TẠM THỜI: bạn cần list npcId
+        // Cách đơn giản nhất: reset theo cache sau khi fetch
+        // Ví dụ: giả sử npcId từ 1 → 10
+        for (int npcId = 1; npcId <= 10; npcId++)
+        {
+            yield return StartCoroutine(FetchShopInventory(npcId));
+
+            if (!shopCache.ContainsKey(npcId))
+                continue;
+
+            foreach (var item in shopCache[npcId])
+            {
+                // Skip unlimited stock
+                if (item.stock == -1)
+                    continue;
+
+                if (item.stock != defaultStockOnGameStart)
+                {
+                    item.stock = defaultStockOnGameStart;
+
+                    yield return StartCoroutine(
+                        UpdateItemStock(
+                            npcId,
+                            item.item_id,
+                            defaultStockOnGameStart
+                        )
+                    );
+
+                    Debug.Log($"🔁 Reset stock: NPC {npcId} | Item {item.item_id} → {defaultStockOnGameStart}");
+                }
+            }
+        }
+
+        Debug.Log("✅ [ShopReset] All shop stock reset completed");
+    }
+
     public ShopItem ConvertToShopItem(DatabaseShopItem dbItem)
     {
         ShopItem shopItem = new ShopItem
@@ -153,7 +198,7 @@ public class DatabaseShopLoader : MonoBehaviour
         {
             string iconPath = dbItem.icon_path.Replace(".png", "").Replace(".jpg", "");
             Sprite icon = Resources.Load<Sprite>(iconPath);
-            
+
             if (icon != null)
             {
                 shopItem.icon = icon;
@@ -198,7 +243,7 @@ public class DatabaseShopLoader : MonoBehaviour
         foreach (var dbItem in dbItems)
         {
             if (!dbItem.is_available) continue; // Skip unavailable items
-            
+
             ShopItem shopItem = ConvertToShopItem(dbItem);
             shopInventory.Add(shopItem);
         }

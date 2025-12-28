@@ -37,7 +37,7 @@ public class CoinInventoryToggle : MonoBehaviour
 
     void Update()
     {
-        // Chỉ cho phép đóng bằng phím E/Esc, KHÔNG mở
+        // Chỉ cho phép đóng bằng phím E, KHÔNG mở (ESC handled by EscapeKeyManager)
         if (isOpen)
         {
             bool pressedClose = false;
@@ -46,12 +46,6 @@ public class CoinInventoryToggle : MonoBehaviour
             {
                 pressedClose = (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame) 
                             || Input.GetKeyDown(KeyCode.E);
-            }
-
-            if (allowEscKeyToClose && !pressedClose)
-            {
-                pressedClose = (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) 
-                            || Input.GetKeyDown(KeyCode.Escape);
             }
 
             if (pressedClose)

@@ -104,8 +104,8 @@ public class UIShopController : MonoBehaviour
 
     void Update()
     {
-        // Close UI with ESC or E key
-        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E))
+        // Close UI with E key (ESC handled by EscapeKeyManager)
+        if (Input.GetKeyDown(KeyCode.E))
         {
             CloseShopUI();
         }
@@ -450,7 +450,6 @@ public class UIShopController : MonoBehaviour
 
     void OnDisable()
     {
-        // Close all pick panels
         ItemTradePanelController.CloseAllPickPanels();
         
         // Clear selection

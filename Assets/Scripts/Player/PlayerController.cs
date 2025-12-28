@@ -132,6 +132,12 @@ public class PlayerController : Singleton<PlayerController>
     }
     private void Dash()
     {
+        // Don't dash if typing in input field
+        if (UIManager.Instance != null && UIManager.Instance.IsInputFieldFocused())
+        {
+            return;
+        }
+        
         if (!isDashing && Stamina.Instance.CurrentStamina > 0)
         {
             Stamina.Instance.UseStamina();

@@ -37,7 +37,8 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
     [SerializeField] private AudioSource audioSource;       // Optional: assign or will create
 
     private Button button;
-    
+    private bool isProcessingPayment = false;
+
     // Track coins selected for visual state
     private int coinsSelected = 0;
 
@@ -45,13 +46,13 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
     {
         button = GetComponent<Button>();
         button.onClick.AddListener(OnPaymentClicked);
-        
+
         // Initialize visual state (all hidden)
         UpdateMoneyBoxVisualState(0);
-        
+
         // Subscribe to coin count changes
         PricePanelController.OnCoinCountChanged += OnCoinCountChanged;
-        
+
         // Setup audio source
         if (audioSource == null)
         {
@@ -113,6 +114,11 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
     /// </summary>
     private void OnPaymentClicked()
     {
+        if (isProcessingPayment)
+        {
+            Debug.LogWarning("⚠️ Payment already processing – ignored");
+            return;
+        }
         Debug.Log("💳 [MoneyBox] Payment button clicked");
 
         if (PricePanelController.Instance == null)
@@ -123,7 +129,7 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
 
         // Check if payment is sufficient
         int changeAmount = PricePanelController.Instance.GetChangeAmount();
-        
+
         if (changeAmount < 0)
         {
             // Not enough money
@@ -133,78 +139,68 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
             return;
         }
 
-        // Process payment (accept exact or overpayment)
         ProcessPayment();
     }
 
-    /// <summary>
-    /// Process the payment - deduct coins and finalize transaction
-    /// </summary>
+
     private void ProcessPayment()
     {
-        Debug.Log("💰 [MoneyBox] Processing payment...");
-        Debug.Log($"   Price: {PricePanelController.Instance.GetTotalPrice()} Obal");
-        Debug.Log($"   Pay: {PricePanelController.Instance.GetPayAmount()} Obal");
-        Debug.Log($"   Change: {PricePanelController.Instance.GetChangeAmount()} Obal");
+        if (isProcessingPayment) return;
+        isProcessingPayment = true;
 
-        // Get selected coins and change amount
-        var selectedCoins = PricePanelController.Instance.GetSelectedCoins();
-        int changeAmount = PricePanelController.Instance.GetChangeAmount();
-
-        if (selectedCoins.Count == 0)
+        try
         {
-            Debug.LogWarning("⚠️ [MoneyBox] No coins selected!");
-            PlaySound(paymentFailSound);
-            ShowNotification("No coins selected!", false);
-            return;
-        }
+            var selectedCoins = PricePanelController.Instance.GetSelectedCoins();
+            int changeAmount = PricePanelController.Instance.GetChangeAmount();
+            if (changeAmount > 0)
+                ReturnChange(changeAmount);
 
-        // Deduct coins from player's inventory
-        bool success = DeductCoins(selectedCoins);
+            // 🔥 UPDATE SHOP STOCK
+            NPCTrader trader = FindObjectOfType<NPCTrader>();
+            int npcId = trader.GetNPCId();
 
-        if (!success)
-        {
-            Debug.LogError("❌ [MoneyBox] Failed to deduct coins!");
-            PlaySound(paymentFailSound);
-            ShowNotification("Payment failed!", false);
-            return;
-        }
+            foreach (var cartItem in ShoppingCartManager.Instance.GetCartItems())
+            {
+                if (cartItem.shopItem.stock == -1)
+                    continue;
 
-        // Return change if overpaid
-        if (changeAmount > 0)
-        {
-            Debug.Log($"💵 [MoneyBox] Returning change: {changeAmount} Obal");
-            ReturnChange(changeAmount);
-        }
+                int newStock = Mathf.Max(
+                    0,
+                    cartItem.shopItem.stock - cartItem.quantity
+                );
 
-        // Keep items in inventory (they are already added)
-        // Mark cart as paid so items won't be removed when shop closes
-        if (ShoppingCartManager.Instance != null)
-        {
+                cartItem.shopItem.stock = newStock;
+
+                StartCoroutine(
+                    DatabaseShopLoader.Instance.UpdateItemStock(
+                        npcId,
+                        cartItem.itemId,
+                        newStock
+                    )
+                );
+
+                Debug.Log($"🧾 Stock updated: item {cartItem.itemId} → {newStock}");
+            }
+
             ShoppingCartManager.Instance.MarkAsPaid();
             ShoppingCartManager.Instance.ClearCart();
-        }
 
-        // Play success sound
-        PlaySound(paymentSuccessSound);
-        
-        // Show success notification
-        string message = changeAmount > 0 
-            ? $"Trade Success! Change: {FormatObal(changeAmount)}" 
-            : "Trade Success!";
-        ShowNotification(message, true);
+            PlaySound(paymentSuccessSound);
+            ShowNotification("Trade Success!", true);
 
-        // Clear price panel
-        if (PricePanelController.Instance != null)
-        {
             PricePanelController.Instance.ClearAll();
+            StartCoroutine(CloseTradeUIAfterDelay(notificationDuration));
+
+            Debug.Log("✅ [MoneyBox] Payment successful!");
         }
-
-        // Close TradeUI after notification
-        StartCoroutine(CloseTradeUIAfterDelay(notificationDuration));
-
-        Debug.Log("✅ [MoneyBox] Payment successful!");
+        finally
+        {
+            // ✅ RESET ONLY AT THE VERY END
+            isProcessingPayment = false;
+        }
     }
+
+
 
     /// <summary>
     /// Return change to player by converting Obal to coins
@@ -325,7 +321,7 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
 
             // Deduct coins
             int removed = CoinInventorySystem.Instance.RemoveCoin(coinSO, amount);
-            
+
             if (removed != amount)
             {
                 Debug.LogError($"❌ [MoneyBox] Failed to remove {coinName}! Removed {removed}/{amount}");
@@ -354,7 +350,7 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
 
         // Get all coin slots and find matching coin
         var coinSlots = CoinInventorySystem.Instance.CoinSlots;
-        
+
         foreach (var slot in coinSlots)
         {
             if (slot.IsEmpty || slot.coin == null) continue;
@@ -430,7 +426,7 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
     private IEnumerator HideNotificationAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
-        
+
         if (notificationPanel != null)
         {
             notificationPanel.SetActive(false);
@@ -443,7 +439,7 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
     private IEnumerator CloseTradeUIAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
-        
+
         if (tradeUI != null)
         {
             tradeUI.SetActive(false);
@@ -542,7 +538,7 @@ public class MoneyBoxPaymentHandler : MonoBehaviour
         {
             button.onClick.RemoveListener(OnPaymentClicked);
         }
-        
+
         // Unsubscribe from events
         PricePanelController.OnCoinCountChanged -= OnCoinCountChanged;
     }

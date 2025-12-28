@@ -1,6 +1,6 @@
 // NPC.cs (debug-enhanced)
 using UnityEngine;
-
+using TMPro;
 public class NPC : MonoBehaviour
 {
     [Header("UI")]
@@ -15,6 +15,7 @@ public class NPC : MonoBehaviour
 
     [Header("Routine Settings")]
     [SerializeField] private bool useRoutineAI = true;
+    [SerializeField] private TMP_InputField dialogueInputField;
 
     private NPCRoutineAI routineAI;
     private NPCQuestGiver questGiver;
@@ -22,10 +23,11 @@ public class NPC : MonoBehaviour
     private bool isDialogueActive = false;
     private bool isPlayerSpeaking = false;
     private bool isNpcSpeaking = false;
-    
+
     // Quest dialogue state - remembers quest being offered
     private int pendingQuestId = -1;
     private string pendingQuestContext = null;
+    private float reenterCooldown = 0f;
 
     private void Start()
     {
@@ -119,16 +121,24 @@ public class NPC : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("Player")) TriggerDialogueEnter();
+        if (other.CompareTag("Player") && reenterCooldown <= 0f)
+        {
+            isPlayerNearby = true;
+            TriggerDialogueEnter();
+        }
     }
 
     private void OnTriggerExit2D(Collider2D other)
     {
-        if (other.CompareTag("Player")) TriggerDialogueExit();
+        if (other.CompareTag("Player"))
+        {
+            isPlayerNearby = false;
+            TriggerDialogueExit();
+            reenterCooldown = 0.5f;
+        }
     }
 
 
-    // ================== CHAT ==================
 
     public void Say(string userText)
     {
@@ -143,7 +153,7 @@ public class NPC : MonoBehaviour
             // Prepare context for chatbot
             string questContext = GetQuestContextForChatbot(userText);
             string npcContext = GetCurrentActivityInfo();
-            
+
             Debug.Log($"🔍 {name}: Quest context status - HasContext: {!string.IsNullOrEmpty(questContext)}, PendingQuestId: {pendingQuestId}");
             if (!string.IsNullOrEmpty(questContext))
             {
@@ -192,22 +202,22 @@ public class NPC : MonoBehaviour
         string lowerText = userText.ToLower();
 
         // Check if player is asking about quests
-        if (lowerText.Contains("need") || lowerText.Contains("help") || 
+        if (lowerText.Contains("need") || lowerText.Contains("help") ||
             lowerText.Contains("quest") || lowerText.Contains("task") ||
             lowerText.Contains("job") || lowerText.Contains("anything"))
         {
             var availableQuests = QuestManager.Instance?.GetQuestsForNPC(questGiver.GetNPCId());
-            
+
             if (availableQuests != null && availableQuests.Count > 0)
             {
                 var quest = availableQuests[0];
                 var objectives = QuestManager.Instance?.GetQuestObjectives(quest.quest_id);
-                
+
                 // Build quest context string
                 string context = $"QUEST_AVAILABLE: {quest.quest_name}\n";
                 context += $"Description: {quest.description}\n";
                 context += $"Difficulty: {quest.difficulty}\n";
-                
+
                 if (objectives != null && objectives.Count > 0)
                 {
                     context += "Objectives:\n";
@@ -216,17 +226,17 @@ public class NPC : MonoBehaviour
                         context += $"- {obj.objective_type}: {obj.description} ({obj.quantity}x {obj.target_name})\n";
                     }
                 }
-                
+
                 context += $"Rewards: {quest.reward_gold} gold";
                 if (quest.reward_exp > 0)
                     context += $", {quest.reward_exp} exp";
                 if (quest.reward_item_id > 0)
                     context += $", item reward";
-                
+
                 // Store pending quest state
                 pendingQuestId = quest.quest_id;
                 pendingQuestContext = context;
-                
+
                 Debug.Log($"📜 {name}: Quest context prepared and stored for quest ID {pendingQuestId}:\n{context}");
                 return context;
             }
@@ -239,7 +249,7 @@ public class NPC : MonoBehaviour
 
         return null;
     }
-    
+
     void ClearPendingQuest()
     {
         Debug.Log($"🗑️ {name}: Clearing pending quest state");
@@ -305,7 +315,7 @@ public class NPC : MonoBehaviour
                 if (questGiver != null)
                 {
                     questGiver.OnPlayerAskForQuest();
-                    ClearPendingQuest(); 
+                    ClearPendingQuest();
                 }
                 break;
 
@@ -337,7 +347,7 @@ public class NPC : MonoBehaviour
                     Debug.Log($"⚠️ {name}: routineAI is null, trying to get component...");
                     routineAI = GetComponent<NPCRoutineAI>();
                 }
-                
+
                 if (routineAI != null)
                 {
                     Debug.Log($"🌸 {name}: Starting flower gathering activity from chatbot request");
@@ -370,19 +380,17 @@ public class NPC : MonoBehaviour
                 Debug.Log($"ℹ️ {name}: No special action matched for '{action}'");
                 break;
         }
-        
+
         Debug.Log($"🏁 {name}: HandleChatbotAction finished");
     }
 
-    // Callback khi NPC nói xong
+
     void OnNpcFinishedSpeaking()
     {
         isNpcSpeaking = false;
-        isPlayerSpeaking = false; // 🔧 thêm dòng này
+        isPlayerSpeaking = false;
         Debug.Log($"🎤 {name}: NPC nói xong, mở mic cho người chơi tiếp tục.");
 
-        // Mở lại mic sau 0.5 giây để người chơi tiếp tục nói
-        // Invoke(nameof(StartListeningForPlayer), 0.5f);
     }
 
 
@@ -425,8 +433,8 @@ public class NPC : MonoBehaviour
     public string GetCurrentActivityInfo()
     {
         if (routineAI != null)
-            return $"Hiện tại tôi đang {routineAI.GetCurrentActivityName()}. Giờ là {Mathf.Floor(routineAI.GetCurrentGameTime())}.";
-        return "Tôi đang làm công việc của mình.";
+            return $"Now I {routineAI.GetCurrentActivityName()}. Now is {Mathf.Floor(routineAI.GetCurrentGameTime())}.";
+        return "I'm doing my jobs.";
     }
 
     public bool IsAvailableForInteraction()
@@ -440,19 +448,31 @@ public class NPC : MonoBehaviour
     {
         if (routineAI == null) return false;
         return routineAI.currentState == NPCState.GatheringFlower ||
-               (!useRoutineAI && routineAI.currentState == NPCState.Socializing);
+            (!useRoutineAI && routineAI.currentState == NPCState.Socializing);
     }
 
     public void OnFlowerGathered(GameObject flower)
     {
+        if (flower == null)
+        {
+            Debug.LogWarning($"⚠️ {name}: OnFlowerGathered called but flower is NULL");
+            return;
+        }
+
         Debug.Log($"🌸 {name}: OnFlowerGathered() gọi với {flower.name}");
+
         Animator anim = GetComponent<Animator>();
-        if (anim != null) anim.SetTrigger("Happy");
+        if (anim != null)
+            anim.SetTrigger("Happy");
     }
+
     private Transform player;
 
     private void Update()
     {
+        if (reenterCooldown > 0f)
+            reenterCooldown -= Time.deltaTime;
+
         if (player == null)
         {
             GameObject p = GameObject.FindWithTag("Player");
@@ -461,25 +481,52 @@ public class NPC : MonoBehaviour
         }
 
         float distance = Vector3.Distance(transform.position, player.position);
-        bool wasNearby = isPlayerNearby;
 
-        if (distance < 1.5f && !isPlayerNearby)
+        if (!isPlayerNearby && reenterCooldown <= 0f && distance < 1.5f && (dialogueInputField == null || !dialogueInputField.isFocused))
         {
-            // Khi người chơi bước vào vùng hội thoại
             isPlayerNearby = true;
             TriggerDialogueEnter();
         }
-        else if (distance >= 1.8f && isPlayerNearby)
+
+        if (isPlayerNearby && distance >= 1.8f)
         {
-            // Khi người chơi rời vùng hội thoại
             isPlayerNearby = false;
+            Debug.Log($"🚶 {name}: Player rời xa NPC (distance {distance:F2})");
+
+            if (isDialogueActive)
+                TriggerDialogueExit();
+        }
+
+        if (isDialogueActive
+    && !isNpcSpeaking
+    && Input.GetKeyDown(KeyCode.Tab)
+    && (dialogueInputField == null || !dialogueInputField.isFocused))
+        {
+            Debug.Log($"⌨️ {name}: Player pressed F → closing dialogue.");
+
             TriggerDialogueExit();
+
+            reenterCooldown = 0.5f;
+            isPlayerNearby = false;
         }
     }
+
     public void TriggerDialogueEnter()
     {
         Debug.Log($"✅ {name}: Player đến gần, bắt đầu hội thoại.");
-        if (dialoguePanel != null) dialoguePanel.SetActive(true);
+        if (dialoguePanel != null)
+        {
+            dialoguePanel.SetActive(true);
+
+            // Notify UIManager to lock player controls
+            if (UIManager.Instance != null)
+            {
+                Debug.Log($"📋 {name}: Calling UIManager.OnPanelOpened()");
+                UIManager.Instance.OnPanelOpened();
+            }
+        }
+
+        // No longer need EscapeKeyManager for dialog - using F key directly
 
         isDialogueActive = true;
         isPlayerSpeaking = false;
@@ -509,31 +556,39 @@ public class NPC : MonoBehaviour
 
     public void TriggerDialogueExit()
     {
-        Debug.Log($"👋 {name}: Player rời xa, đóng hội thoại.");
-        if (dialoguePanel != null) dialoguePanel.SetActive(false);
+        // Prevent double-call
+        if (!isDialogueActive)
+        {
+            Debug.Log($"⚠️ {name}: TriggerDialogueExit() called but dialogue already closed, ignoring.");
+            return;
+        }
 
-        // Dừng dialogue và thu hồi mic
+        Debug.Log($"👋 {name}: Player rời xa, đóng hội thoại.");
+
         isDialogueActive = false;
+        isPlayerNearby = false;
+
+        if (dialoguePanel != null)
+        {
+            dialoguePanel.SetActive(false);
+
+            if (UIManager.Instance != null)
+            {
+                Debug.Log($"📋 {name}: Calling UIManager.OnPanelClosed()");
+                UIManager.Instance.OnPanelClosed();
+            }
+        }
         isPlayerSpeaking = false;
         isNpcSpeaking = false;
-        
-        // Clear pending quest when dialogue ends
+
         ClearPendingQuest();
 
-        // Dừng recording nếu đang ghi âm
-        // if (speechRecognition != null)
-        // {
-        //     speechRecognition.StopRecording();
-        // }
-
-        // Chỉ resume activity nếu NPC có player request hoặc đang trong routine bình thường
         if (routineAI != null && useRoutineAI)
         {
             bool hasRequest = routineAI.HasPlayerRequest();
             Debug.Log($"🔍 {name}: Player left dialogue. PlayerRequest={hasRequest}");
-            
-            // Nếu có player request hái hoa, NPC sẽ tiếp tục
-            // Nếu không, NPC sẽ quay về routine bình thường theo thời gian
+
+
             if (hasRequest)
             {
                 Debug.Log($"🌸 {name}: Resuming flower gathering from player request");

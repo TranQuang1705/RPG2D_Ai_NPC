@@ -4,14 +4,22 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 import asyncio, uuid, os, edge_tts, re, ssl, aiohttp
 import requests, os, uuid, asyncio, threading, edge_tts, re
-from gtts import gTTS  # ← THÊM GOOGLE TTS
+from gtts import gTTS
 from flask_cors import CORS
 from sentence_transformers import SentenceTransformer, util
 from collections import deque
 from flask import abort
 import aiohttp, ssl
 import pyttsx3
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+import numpy as np
+import matplotlib
+matplotlib.use("Agg")  
 
+import matplotlib.pyplot as plt
+import os
+import time
 app = Flask(__name__)
 CORS(app)
 
@@ -63,6 +71,32 @@ system_prompt = (
     "IMPORTANT: You MUST respond ONLY in English. Never use Vietnamese or any other language. "
     "All your responses must be in clear.\n"
     "Never include code blocks, JSON, or technical details. Speak like a person.\n"
+    "IMPORTANT INTENT RULES:\n"
+    "You must classify the user's intent into one of the following:\n"
+    "greeting, ask_direction, ask_for_quest, quest_confirmation, trade, combat, farewell, other\n"
+
+    "FAREWELL:\n"
+    "Return 'farewell' ONLY IF the input clearly indicates ending the conversation,\n"
+    "such as saying goodbye (e.g., 'bye', 'goodbye', 'see you'', 'farewell', 'take care').\n"
+
+    "OTHER:\n"
+    "Return 'other'' ONLY IF:\n"
+    "- The input expresses emotion, thoughts, or observation\n"
+    "- AND does NOT indicate greeting, farewell, request, or action\n"
+    "- AND does NOT clearly imply conversation ending\n"
+    "If unsure between 'farewell' and 'other'', choose 'other'.\n"
+    "DIRECTION RULE:\n"
+    "If the intent is ask_direction:\n"
+    "- Do NOT describe landmarks, paths, trees, or locations.\n"
+    "- Do NOT give step-by-step directions.\n"
+    "- Respond briefly that the place is nearby.\n"
+    "- Say that your firefly friends will guide the player.\n"
+    "- You have an items that can call out your firefly friends to guide the player.(you can meantion this or not it up to you\n"
+    "NOTE: Do NOT guide the player how to use the firefly item, just mention it exists and you have it so you can help the player Locate the Directions.\n"
+    "If player asks for the items, explain that it's a small lantern with a small light inside that can call your firefly friends to light the way.\n"
+    "This item is a speacial gift from your grandmother when you was young.\n"
+    "DO NOT ask the player when you use it just use it directly to help the player find the direction.\n"
+    "- Keep it natural and gentle.\n"
 )
 
 VOICE, RATE, PITCH = "en-US-JennyNeural", "-10%", "+4Hz"
@@ -70,25 +104,30 @@ SESSIONS = {}
 
 MAX_TURNS = 20
 
-#hàm này là bộ so khớp ngữ nghĩa giữa câu người dùng và các ví dụ intent, dùng cosine similarity để chấm điểm và chọn intent có độ giống ngữ nghĩa cao nhất.
-def detect_intent_semantic(text: str):
-    if not text:
-        return "other", 0.0
-    #nếu input rỗng → không thể suy ý định → trả ("other", 0.0)
-    sent_emb = EMB_MODEL.encode(text, convert_to_tensor=True)
-    #Mã hóa câu đầu vào thành vector nhúng (embedding vector) sử dụng mô hình Sentence Transformer đã tải trước đó.
-    #convert_to_tensor=True giúp .encode() trả thẳng tensor thay vì mảng numpy
-    best_intent, best_score = "other", -1.0
-    #Khởi tạo kết quả tạm thời. -1.0 để đảm bảo bất kỳ điểm cosine hợp lệ nào (≥ -1) cũng sẽ lớn hơn giá trị khởi tạo này.
-    for intent, ex_emb in INTENT_EMB.items():
-        score = float(util.cos_sim(sent_emb, ex_emb).mean().item())
-        if score > best_score:
-            best_intent, best_score = intent, score
-    return best_intent, best_score
-#text = "can you show me the way to the town?"
-#greeting: ví dụ kiểu “hello, hi…” → cosine thấp.
-#ask_direction: ví dụ “where is the village / show me the way …” → cosine cao ở hầu hết ví dụ → điểm trung bình cao.
-#Kết quả: ("ask_direction", ~0.82) chẳng hạn.
+def detect_intent_semantic(text):
+    user_embedding = EMB_MODEL.encode(text)
+
+    best_intent = "other"
+    best_conf = -1.0
+    intent_embeddings = {}
+    cosine_scores = {}
+  
+
+    for intent, examples in INTENT_EXAMPLES.items():
+        emb = EMB_MODEL.encode(examples).mean(axis=0)
+        intent_embeddings[intent] = emb
+        sim = cosine_similarity([user_embedding], [emb])[0][0]
+        cosine_scores[intent] = sim
+
+        if sim > best_conf:
+            best_conf = sim
+            best_intent = intent
+    print(f"[COSINE] intent={intent}, score={best_conf:.3f}")
+
+    return best_intent, best_conf, user_embedding, intent_embeddings, cosine_scores
+
+
+
 def classify_intent_llama(text: str) -> str:
     payload = {
         "model": MODEL_NAME,
@@ -115,15 +154,24 @@ def classify_intent_llama(text: str) -> str:
         return "other"
 
 
-def detect_intent(text: str):
-    intent, conf = detect_intent_semantic(text)
-    #tính cosine similarity với intent và conf
-    if conf < INTENT_THRESHOLD:
-    #nếu điểm cosine thấp hơn ngưỡng (<0.55) → không chắc chắn → dùng mô hình Llama để phân loại intent
-        intent = classify_intent_llama(text)
-    #nếu điểm cosine cao hơn ngưỡng → dùng intent từ bộ so khớp ngữ nghĩa tự nhiên
-    return intent
-#Hàm này quyết định khi nào dùng cái nào — giống như “bộ điều phối” giữa 2 mô hình.
+def detect_intent(text: str) -> str:
+    intent_st, conf, user_embedding, intent_embeddings, cosine_scores = detect_intent_semantic(text)
+
+    # 1️⃣ Vẽ diagram dựa trên SentenceTransformer
+    draw_vector_similarity(
+        user_text=text,
+        final_intent=intent_st,
+        user_vec=user_embedding,
+        intent_vecs=list(intent_embeddings.values()),
+        intent_labels=list(intent_embeddings.keys()),
+        cosine_scores=cosine_scores
+    )
+
+    if conf >= INTENT_THRESHOLD:
+        final_intent = intent_st
+    else:
+        final_intent = classify_intent_llama(text)
+    return final_intent
 
 def get_history(session_id: str):
     #nhận vào 1 session_id (chuỗi định danh phiên trò chuyện)
@@ -230,6 +278,63 @@ def tts_file(text: str):
     
     return out_path, fname
 
+def reduce_to_2d(vectors):
+    pca = PCA(n_components=2)
+    return pca.fit_transform(vectors)
+def draw_vector_similarity(user_text, final_intent, user_vec, intent_vecs, intent_labels, cosine_scores):
+    os.makedirs("diagrams", exist_ok=True)
+
+    all_vecs = [user_vec] + intent_vecs
+    reduced = reduce_to_2d(np.array(all_vecs))
+
+    user_point = reduced[0]
+    intent_points = reduced[1:]
+
+    plt.figure(figsize=(9, 7))
+
+    # User
+    plt.scatter(user_point[0], user_point[1],
+                c="red", s=120, label="User Input")
+
+    for point, label in zip(intent_points, intent_labels):
+        plt.scatter(point[0], point[1], c="blue")
+
+        # vẽ đường nối
+        plt.plot(
+            [user_point[0], point[0]],
+            [user_point[1], point[1]],
+            linestyle="--",
+            alpha=0.5
+        )
+
+        # ghi tên intent
+        plt.text(point[0] + 0.01, point[1] + 0.01, label)
+
+        # ghi cosine similarity ở giữa đường
+        mid_x = (user_point[0] + point[0]) / 2
+        mid_y = (user_point[1] + point[1]) / 2
+
+        score = cosine_scores[label]
+        plt.text(
+            mid_x, mid_y,
+            f"{score:.2f}",
+            fontsize=9,
+            color="darkgreen"
+        )
+
+    plt.title(
+    "Semantic Similarity Visualization\n"
+    f"User Input: \"{user_text}\"\n"
+    f"Final Intent: {final_intent}",
+    fontsize=12)
+    plt.legend()
+    plt.tight_layout()
+    timestamp = int(time.time())
+    plt.savefig(f"diagrams/intent_vector_similarity_cosine_{timestamp}.png")
+    plt.close()
+
+    print("[DIAGRAM] Saved with cosine scores")
+
 
 
 @app.route("/audio/<name>")
@@ -259,6 +364,7 @@ def chat():
     session_id = (data.get("session_id") or "default").strip() or "default"
     quest_context = (data.get("quest_context") or "").strip()
     npc_context = (data.get("npc_context") or "").strip()
+    quest_state = data.get("quest_state", "NONE")
     #Lấy dữ liệu JSON từ yêu cầu POST, trích xuất văn bản người dùng, session_id và contexts
     
     print(f"[DEBUG] Input: '{user_input}' | Has quest_context: {bool(quest_context)}")
@@ -277,7 +383,7 @@ def chat():
     # PRIORITY 1: Check for quest confirmation if quest_context exists
     # This must be checked FIRST to prevent other keywords from overriding
     confirmation_keywords = ["yes", "sure", "okay", "ok", "i'll help", "i will help", "accept", "agree", "let's do it", "let me help", "count me in", "sounds good", "alright"]
-    if quest_context and any(k in low_text for k in confirmation_keywords):
+    if quest_state == "WAITING_CONFIRM" and any(k in low_text for k in confirmation_keywords):
         intent = "quest_confirmation"
         print(f"[QUEST] Detected quest confirmation with keyword in: {low_text}")
     # PRIORITY 2: Check for quest completion
@@ -291,7 +397,11 @@ def chat():
     elif any(k in low_text for k in ["my quest", "quest status", "quest progress", "what task", "check quest"]):
         intent = "quest_status"
     # PRIORITY 5: Other specific intents
-    elif any(k in low_text for k in ["village", "town", "where"]):
+    elif (
+        "where" in low_text
+        and any(p in low_text for p in ["village", "town"])
+        and any(p in low_text for p in ["i", "me", "we"])
+    ):
         intent = "ask_direction"
     elif any(k in low_text for k in ["attack", "fight", "wolf", "combat"]):
         intent = "combat"
@@ -300,7 +410,7 @@ def chat():
     elif any(k in low_text for k in ["bye", "goodbye"]):
         intent = "farewell"
     elif any(k in low_text for k in ["flower", "pick", "gather", "bloom", "petal"]):
-        intent = "gather_flower"
+        intent = "gather_flower"    
     #Cải thiện phát hiện intent dựa trên từ khóa cụ thể - với ưu tiên quest confirmation
     history.append({"role": "user", "content": f"[intent={intent}] {user_input}"})
     #Lưu lịch sử hội thoại với định dạng đặc biệt để bao gồm intent
@@ -313,6 +423,7 @@ def chat():
         contextual_prompt += "Make it sound like you really need help, not like you're reading from a quest log. "
         contextual_prompt += "After explaining, ask if they would be willing to help you. "
         contextual_prompt += "Remember: Respond ONLY in English, never in Vietnamese or other languages."
+        contextual_prompt += ("\nIf the user says yes, okay, or agrees but there is no quest being offered, " "respond politely with confusion and ask what they mean. ")
     if npc_context:
         contextual_prompt += f"\n\n[YOUR CURRENT STATUS]\n{npc_context}"
     
@@ -372,13 +483,18 @@ def chat():
         action = "GATHER_FLOWER"
         params = {"target": "flower_field", "target_label": "Wildflowers"}
     elif intent == "quest_confirmation":
-        # Player confirmed to accept the quest
         action = "ACCEPT_QUEST_CONFIRM"
-        params = {"trigger": "player_confirmed"}
+        params = {
+            "trigger": "player_confirmed",
+            "next_quest_state": "NONE"
+        }
     elif intent == "ask_for_quest":
         # Player asking if NPC needs help - explain quest but don't accept yet
         action = "QUEST_DIALOGUE"
-        params = {"trigger": "player_ask_help"}
+        params = {
+        "trigger": "player_ask_help",
+        "next_quest_state": "WAITING_CONFIRM"
+    }
     elif intent == "quest_status":
         action = "SHOW_QUEST_STATUS"
         params = {"open_quest_panel": True}

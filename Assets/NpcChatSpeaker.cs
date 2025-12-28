@@ -104,22 +104,17 @@ public class NpcChatSpeaker : MonoBehaviour
                 yield break;
             }
 
-            // 💬 Store reply text for typing animation (will be displayed with audio)
             string replyText = br.reply;
 
-            // ⚙️ NEW: Nếu Flask trả về action (NAVIGATE, COMBAT, SHOP...)
             if (!string.IsNullOrEmpty(br.action))
             {
                 
-                // Phân loại action: NPC-specific vs Global
                 bool isNpcAction = IsNpcSpecificAction(br.action);
                 
                 if (isNpcAction && npcComponent != null)
                 {
-                    // Actions dành cho NPC cụ thể (GATHER_FLOWER, ASK_FOR_QUEST, etc.)
                     var parameters = new System.Collections.Generic.Dictionary<string, object>();
                     
-                    // Convert ResponseParams to dictionary if available
                     if (br.@params != null)
                     {
                         if (!string.IsNullOrEmpty(br.@params.target))
@@ -136,7 +131,6 @@ public class NpcChatSpeaker : MonoBehaviour
                 }
                 else
                 {
-                    // Global actions (NAVIGATE, START_COMBAT, OPEN_SHOP) → NavActionHandler
                     if (navHandler == null) navHandler = FindObjectOfType<NavActionHandler>();
                     if (navHandler != null)
                     {
@@ -150,12 +144,11 @@ public class NpcChatSpeaker : MonoBehaviour
                     }
                     else
                     {
-                        Debug.LogWarning("⚠️ NavActionHandler not found for global action!");
+                        Debug.LogWarning(" NavActionHandler not found for global action!");
                     }
                 }
             }
 
-            // 🔊 Phát âm thanh trả lời
             if (!string.IsNullOrEmpty(br.audio_url))
             {
                 latestResponseId++;
@@ -169,7 +162,6 @@ public class NpcChatSpeaker : MonoBehaviour
                     OnSpeakEnd?.Invoke();
                 }
                 
-                // Stop any existing typing animation
                 if (currentTypingCo != null)
                 {
                     StopCoroutine(currentTypingCo);
@@ -181,7 +173,6 @@ public class NpcChatSpeaker : MonoBehaviour
             }
             else
             {
-                // No audio - just show text immediately without animation
                 if (!string.IsNullOrEmpty(replyText) && subtitleTMP != null)
                 {
                     string emotion;
@@ -200,8 +191,7 @@ public class NpcChatSpeaker : MonoBehaviour
 
         using (UnityWebRequest uwr = new UnityWebRequest(finalUrl, UnityWebRequest.kHttpVerbGET))
         {
-            // Auto-detect AudioType từ URL extension
-            AudioType audioType = AudioType.MPEG; // MP3 format (works with both Edge & Google TTS)
+            AudioType audioType = AudioType.MPEG; 
             if (urlWithoutQuery.EndsWith(".wav")) audioType = AudioType.WAV;
             else if (urlWithoutQuery.EndsWith(".ogg")) audioType = AudioType.OGGVORBIS;
             

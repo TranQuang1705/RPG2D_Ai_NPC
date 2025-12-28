@@ -93,6 +93,11 @@ public class TimeManager : MonoBehaviour
         // Tăng thời gian theo tỷ lệ: 24 giờ = minutesPerDay phút thực
         float timeIncreaseRate = 24f / (minutesPerDay * 60f);
         currentTime += Time.deltaTime * timeIncreaseRate;
+        if (Input.GetKeyDown(KeyCode.T) &&
+    (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
+        {
+            AdvanceTimeForDebug(1f); // +1 giờ (DEBUG)
+        }
 
         // Reset sau khi qua đêm
         if (currentTime >= 24f)
@@ -371,13 +376,27 @@ public class TimeManager : MonoBehaviour
     }
 
     // Debug
-    void OnGUI()
+    // void OnGUI()
+    // {
+    //     GUILayout.BeginArea(new Rect(10, 10, 300, 120));
+    //     GUILayout.Label($"Year {currentYear} - {GetSeasonName(currentSeason)}");
+    //     GUILayout.Label($"Day {GetDayInSeason()}/{daysPerSeason}");
+    //     GUILayout.Label($"Time {GetCurrentTimeString()}");
+    //     GUILayout.Label(isDay ? "Day" : "Night");
+    //     GUILayout.EndArea();
+    // }
+    void AdvanceTimeForDebug(float hours)
     {
-        GUILayout.BeginArea(new Rect(10, 10, 300, 120));
-        GUILayout.Label($"Year {currentYear} - {GetSeasonName(currentSeason)}");
-        GUILayout.Label($"Day {GetDayInSeason()}/{daysPerSeason}");
-        GUILayout.Label($"Time {GetCurrentTimeString()}");
-        GUILayout.Label(isDay ? "Day" : "Night");
-        GUILayout.EndArea();
+        currentTime += hours;
+
+        if (currentTime >= 24f)
+        {
+            currentTime -= 24f;
+            currentDay++;
+            CheckSeasonChange();
+        }
+
+        Debug.Log($"[DEBUG] Time forced to: {GetCurrentTimeString()}");
     }
+
 }
